@@ -565,7 +565,7 @@ app.get('/api/submissions/mine', requireAuth, async (req: AuthedRequest, res) =>
     WHERE s.user_id = ? ORDER BY s.submitted_at DESC LIMIT 100
   `).all(req.user!.id);
   res.json(rows.map((r: any) => ({
-    id: r.id, problemId: r.problem_id, problemTitle: r.problem_title, language: r.language, code: r.code,
+    id: r.id, problemId: r.problem_id, problemTitle: r.problem_title, language: r.language,
     status: r.status, submittedAt: r.submitted_at, executionTimeMs: r.execution_time_ms, memoryKb: r.memory_kb,
   })));
 });

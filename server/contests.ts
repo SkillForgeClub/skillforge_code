@@ -126,7 +126,7 @@ contestsRouter.post('/:id/register', requireAuth, async (req: AuthedRequest, res
 // Live leaderboard (ICPC-style: points desc, penalty minutes asc)
 // ---------------------------------------------------------------------------
 
-contestsRouter.get('/:id/leaderboard', async (req, res) => {
+contestsRouter.get('/:id/leaderboard', optionalAuth, async (req, res) => {
   const contest = await db.prepare(`SELECT * FROM contests WHERE id=?`).get(req.params.id);
   if (!contest) return res.status(404).json({ error: 'Contest not found.' });
 
