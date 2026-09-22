@@ -36,5 +36,6 @@ RUN npm run build
 ENV NODE_ENV=production
 EXPOSE 8787
 
+# Use the locally installed tsx (not npx which re-resolves on every start).
 # Render sets $PORT automatically; server/index.ts already reads it (falls back to 8787 locally).
-CMD ["npx", "tsx", "server/index.ts"]
+CMD ["node_modules/.bin/tsx", "server/index.ts"]

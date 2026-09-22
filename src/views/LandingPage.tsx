@@ -30,7 +30,7 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRole }) => {
   const [previewQuizzes, setPreviewQuizzes] = useState<Quiz[]>([]);
   const [previewLeaderboard, setPreviewLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [stats, setStats] = useState({ students: 0, problems: 0, submissions: 0 });
+  const [stats, setStats] = useState({ problems: 0 });
 
   useEffect(() => {
     quizzesApi.list().then((all) => {
@@ -40,9 +40,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
     leaderboardApi.list().then((entries) => setPreviewLeaderboard(entries.slice(0, 3))).catch(() => {});
     fetch('/api/health').then(() =>
       Promise.all([
-        fetch('/api/leaderboard').then(r => r.json()).then((d: any[]) => d.length),
-        fetch('/api/problems').then(r => r.json()).then((d: any[]) => d.length),
-      ]).then(([students, problems]) => setStats({ students, problems, submissions: 0 }))
+        fetch('/api/problems').then(r => r.json()).then((d: any[]) => d.length).catch(() => 0),
+      ]).then(([problems]) => setStats(s => ({ ...s, problems })))
     ).catch(() => {});
   }, []);
 
@@ -98,12 +97,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
             {/* Quick stats inline summary */}
             <div className="grid grid-cols-3 gap-4 pt-8 border-t border-zinc-200/60 dark:border-zinc-800/50 max-w-lg mx-auto lg:mx-0">
               <div>
-                <span className="block text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{stats.students}+</span>
-                <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Active Students</span>
+                <span className="block text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{stats.problems}+</span>
+                <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Problems</span>
               </div>
               <div>
-                <span className="block text-2xl font-extrabold text-zinc-800 dark:text-white">{stats.problems}+</span>
-                <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Problems</span>
+                <span className="block text-2xl font-extrabold text-zinc-800 dark:text-white">4 Lang</span>
+                <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Languages</span>
               </div>
               <div>
                 <span className="block text-2xl font-extrabold text-zinc-800 dark:text-white">5 Star</span>
@@ -274,19 +273,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
           <div className="flex flex-wrap items-center justify-center gap-6">
             <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-[#0a0a0a] border border-zinc-200 dark:border-zinc-800/80 shadow-sm">
               <span className="font-extrabold text-lg text-blue-600 dark:text-blue-400 font-mono">C</span>
-              <span className="text-xs font-bold text-zinc-600 dark:text-zinc-450">C Compiler (Clang 18)</span>
+              <span className="text-xs font-bold text-zinc-600 dark:text-zinc-450">C (GCC)</span>
             </div>
             <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-[#0a0a0a] border border-zinc-200 dark:border-zinc-800/80 shadow-sm">
               <span className="font-extrabold text-lg text-indigo-600 dark:text-indigo-455 font-mono">C++</span>
-              <span className="text-xs font-bold text-zinc-600 dark:text-zinc-450">C++ 14 (GCC 14)</span>
+              <span className="text-xs font-bold text-zinc-600 dark:text-zinc-450">C++17 (G++)</span>
             </div>
             <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-[#0a0a0a] border border-zinc-200 dark:border-zinc-800/80 shadow-sm">
               <span className="font-extrabold text-lg text-amber-600 dark:text-amber-455 font-mono">Java</span>
-              <span className="text-xs font-bold text-zinc-600 dark:text-zinc-450">Java SE 21 (OpenJDK)</span>
+              <span className="text-xs font-bold text-zinc-600 dark:text-zinc-450">Java 17 (OpenJDK)</span>
             </div>
             <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-[#0a0a0a] border border-zinc-200 dark:border-zinc-800/80 shadow-sm">
               <span className="font-extrabold text-lg text-emerald-600 dark:text-emerald-455 font-mono">Python</span>
-              <span className="text-xs font-bold text-zinc-600 dark:text-zinc-450">Python 3.11 Workspace</span>
+              <span className="text-xs font-bold text-zinc-600 dark:text-zinc-450">Python 3</span>
             </div>
           </div>
         </div>
@@ -300,11 +299,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
         </div>
         
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="p-6 rounded-2xl bg-white dark:bg-[#141414] border border-zinc-200 dark:border-zinc-800/80 text-center space-y-1">
-            <span className="block text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">{stats.students}</span>
-            <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Active Students</span>
-            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 block">Department registered</span>
-          </div>
           <div className="p-6 rounded-2xl bg-white dark:bg-[#141414] border border-zinc-200 dark:border-zinc-800/80 text-center space-y-1">
             <span className="block text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">{stats.problems}</span>
             <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Total Problems</span>
