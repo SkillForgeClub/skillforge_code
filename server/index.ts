@@ -495,7 +495,7 @@ app.post('/api/submissions/submit', requireAuth, async (req: AuthedRequest, res)
   }
 
   const rate = checkRateLimit(req.user!.id);
-  if (!rate.ok) return res.status(429).json({ error: rate.reason });
+  if (!rate.ok) return res.status(429).json({ error: (rate as any).reason });
 
   const subId = newId('sub');
   await db.prepare(`

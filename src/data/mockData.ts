@@ -196,6 +196,7 @@ export const INITIAL_STUDENTS: Student[] = [
     rank: 12,
     problemsSolved: { easy: 45, medium: 32, hard: 8 },
     streak: 15,
+    points: 0,
     certificates: [
       { id: 'cert-1', title: 'Data Structures Mastery', issueDate: '2026-04-12', credentialUrl: '#' },
       { id: 'cert-2', title: 'Python Elite Coder', issueDate: '2026-06-01', credentialUrl: '#' }
@@ -216,6 +217,7 @@ export const INITIAL_STUDENTS: Student[] = [
     rank: 3,
     problemsSolved: { easy: 65, medium: 52, hard: 21 },
     streak: 42,
+    points: 0,
     certificates: [
       { id: 'cert-3', title: 'Algorithm Specialist', issueDate: '2026-02-15', credentialUrl: '#' },
       { id: 'cert-4', title: 'Dynamic Programming Legend', issueDate: '2026-05-10', credentialUrl: '#' }
@@ -236,6 +238,7 @@ export const INITIAL_STUDENTS: Student[] = [
     rank: 88,
     problemsSolved: { easy: 22, medium: 12, hard: 1 },
     streak: 3,
+    points: 0,
     certificates: [],
     badges: [
       { id: 'badge-1', name: 'First Milestone', icon: '🌱', description: 'Solved 10 Easy problems', unlockedAt: '2026-05-18' }
@@ -251,6 +254,7 @@ export const INITIAL_STUDENTS: Student[] = [
     rank: 34,
     problemsSolved: { easy: 38, medium: 21, hard: 4 },
     streak: 9,
+    points: 0,
     certificates: [
       { id: 'cert-5', title: 'Java Core Certification', issueDate: '2026-05-20', credentialUrl: '#' }
     ],
@@ -268,6 +272,7 @@ export const INITIAL_STUDENTS: Student[] = [
     rank: 105,
     problemsSolved: { easy: 18, medium: 8, hard: 0 },
     streak: 0,
+    points: 0,
     certificates: [],
     badges: []
   },
@@ -281,6 +286,7 @@ export const INITIAL_STUDENTS: Student[] = [
     rank: 22,
     problemsSolved: { easy: 40, medium: 28, hard: 6 },
     streak: 11,
+    points: 0,
     certificates: [
       { id: 'cert-6', title: 'C++ Masterclass', issueDate: '2026-03-30', credentialUrl: '#' }
     ],

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
-import { ApiError } from '../services/api';
+import { authApi, ApiError } from '../services/api';
 
 interface AuthPortalProps {
   initialMode: 'login' | 'register' | 'forgot';

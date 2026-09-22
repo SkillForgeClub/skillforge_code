@@ -313,8 +313,8 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
         'C': '#include <stdio.h>\nint main() { return 0; }'
       },
       testCases: [
-        { input: problemForm.publicInput, expectedOutput: problemForm.publicOutput, isPublic: true },
-        { input: problemForm.hiddenInput, expectedOutput: problemForm.hiddenOutput, isPublic: false }
+        { id: '', input: problemForm.publicInput, expectedOutput: problemForm.publicOutput, isPublic: true },
+        { id: '', input: problemForm.hiddenInput, expectedOutput: problemForm.hiddenOutput, isPublic: false }
       ],
     };
 
