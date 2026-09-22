@@ -1,0 +1,820 @@
+[
+  {
+    "id": "reverse-digits",
+    "title": "Reverse Digits of a Number",
+    "difficulty": "Easy",
+    "category": "Math",
+    "statement": "Given an integer `n`, return the integer formed by reversing its digits.\n\nIf `n` is negative, the sign stays on the result. Leading zeros in the reversed number are dropped (e.g. reversing 120 gives 21).",
+    "inputFormat": "A single line containing the integer n.",
+    "outputFormat": "A single line containing the reversed integer.",
+    "constraints": "-2^31 <= n <= 2^31 - 1",
+    "examples": [
+      {
+        "input": "123",
+        "output": "321"
+      },
+      {
+        "input": "-456",
+        "output": "-654"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "123",
+        "expectedOutput": "321",
+        "isPublic": true
+      },
+      {
+        "input": "-456",
+        "expectedOutput": "-654",
+        "isPublic": true
+      },
+      {
+        "input": "120",
+        "expectedOutput": "21",
+        "isPublic": false
+      },
+      {
+        "input": "0",
+        "expectedOutput": "0",
+        "isPublic": false
+      },
+      {
+        "input": "7",
+        "expectedOutput": "7",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "n = int(input())\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "vowel-consonant-count",
+    "title": "Count Vowels and Consonants",
+    "difficulty": "Easy",
+    "category": "Strings",
+    "statement": "Given a string `s` consisting of lowercase English letters, print the number of vowels and the number of consonants in it, separated by a space.",
+    "inputFormat": "A single line containing the string s.",
+    "outputFormat": "Two space-separated integers: vowel count, then consonant count.",
+    "constraints": "1 <= s.length <= 10^5, s contains only lowercase English letters.",
+    "examples": [
+      {
+        "input": "hello",
+        "output": "2 3"
+      },
+      {
+        "input": "programming",
+        "output": "3 8"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "hello",
+        "expectedOutput": "2 3",
+        "isPublic": true
+      },
+      {
+        "input": "programming",
+        "expectedOutput": "3 8",
+        "isPublic": true
+      },
+      {
+        "input": "aeiou",
+        "expectedOutput": "5 0",
+        "isPublic": false
+      },
+      {
+        "input": "xyz",
+        "expectedOutput": "0 3",
+        "isPublic": false
+      },
+      {
+        "input": "a",
+        "expectedOutput": "1 0",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "s = input()\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "missing-number",
+    "title": "Find the Missing Number",
+    "difficulty": "Easy",
+    "category": "Arrays & Hashing",
+    "statement": "You are given an array containing `n` distinct integers taken from the range `[0, n]`. Exactly one number in that range is missing from the array. Find and return the missing number.",
+    "inputFormat": "The first line contains an integer N, the size of the array.\nThe second line contains N space-separated integers.",
+    "outputFormat": "A single integer: the missing number.",
+    "constraints": "1 <= N <= 10^5, 0 <= nums[i] <= N, all values are distinct.",
+    "examples": [
+      {
+        "input": "3\n3 0 1",
+        "output": "2"
+      },
+      {
+        "input": "5\n0 1 2 3 4",
+        "output": "5"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "3\n3 0 1",
+        "expectedOutput": "2",
+        "isPublic": true
+      },
+      {
+        "input": "5\n0 1 2 3 4",
+        "expectedOutput": "5",
+        "isPublic": true
+      },
+      {
+        "input": "1\n1",
+        "expectedOutput": "0",
+        "isPublic": false
+      },
+      {
+        "input": "0\n",
+        "expectedOutput": "0",
+        "isPublic": false
+      },
+      {
+        "input": "4\n1 2 3 4",
+        "expectedOutput": "0",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "n = int(input())\nnums = list(map(int, input().split())) if n > 0 else []\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "balanced-parentheses",
+    "title": "Check Balanced Parentheses",
+    "difficulty": "Easy",
+    "category": "Stack",
+    "statement": "Given a string `s` containing just the characters `(`, `)`, `{`, `}`, `[`, and `]`, determine if the input string is valid. A string is valid if every opening bracket has a matching closing bracket of the same type, in the correct order.",
+    "inputFormat": "A single line containing the string s.",
+    "outputFormat": "Print `true` if the string is valid, `false` otherwise.",
+    "constraints": "1 <= s.length <= 10^4",
+    "examples": [
+      {
+        "input": "()",
+        "output": "true"
+      },
+      {
+        "input": "()[]{}",
+        "output": "true"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "()",
+        "expectedOutput": "true",
+        "isPublic": true
+      },
+      {
+        "input": "()[]{}",
+        "expectedOutput": "true",
+        "isPublic": true
+      },
+      {
+        "input": "(]",
+        "expectedOutput": "false",
+        "isPublic": false
+      },
+      {
+        "input": "([)]",
+        "expectedOutput": "false",
+        "isPublic": false
+      },
+      {
+        "input": "{[]}",
+        "expectedOutput": "true",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "s = input()\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "max-of-three",
+    "title": "Maximum of Three Numbers",
+    "difficulty": "Easy",
+    "category": "Math",
+    "statement": "Given three integers `a`, `b`, and `c`, print the largest of the three.",
+    "inputFormat": "A single line containing three space-separated integers a, b, c.",
+    "outputFormat": "A single integer: the maximum of the three.",
+    "constraints": "-10^9 <= a, b, c <= 10^9",
+    "examples": [
+      {
+        "input": "3 7 2",
+        "output": "7"
+      },
+      {
+        "input": "-5 -1 -9",
+        "output": "-1"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "3 7 2",
+        "expectedOutput": "7",
+        "isPublic": true
+      },
+      {
+        "input": "-5 -1 -9",
+        "expectedOutput": "-1",
+        "isPublic": true
+      },
+      {
+        "input": "10 10 10",
+        "expectedOutput": "10",
+        "isPublic": false
+      },
+      {
+        "input": "0 -1 1",
+        "expectedOutput": "1",
+        "isPublic": false
+      },
+      {
+        "input": "100 99 100",
+        "expectedOutput": "100",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "a, b, c = map(int, input().split())\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "digital-root",
+    "title": "Sum of Digits Until Single Digit",
+    "difficulty": "Easy",
+    "category": "Math",
+    "statement": "Given a non-negative integer `n`, repeatedly add its digits together until the result has only one digit. Return that digit (this is known as the digital root).",
+    "inputFormat": "A single line containing the integer n.",
+    "outputFormat": "A single integer: the digital root of n.",
+    "constraints": "0 <= n <= 10^9",
+    "examples": [
+      {
+        "input": "38",
+        "output": "2"
+      },
+      {
+        "input": "0",
+        "output": "0"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "38",
+        "expectedOutput": "2",
+        "isPublic": true
+      },
+      {
+        "input": "0",
+        "expectedOutput": "0",
+        "isPublic": true
+      },
+      {
+        "input": "9999",
+        "expectedOutput": "9",
+        "isPublic": false
+      },
+      {
+        "input": "5",
+        "expectedOutput": "5",
+        "isPublic": false
+      },
+      {
+        "input": "123456789",
+        "expectedOutput": "9",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "n = int(input())\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "rotate-array",
+    "title": "Rotate Array by K Positions",
+    "difficulty": "Medium",
+    "category": "Arrays & Hashing",
+    "statement": "Given an array of integers and an integer `k`, rotate the array to the right by `k` steps, where `k` is non-negative.",
+    "inputFormat": "The first line contains an integer N, the size of the array.\nThe second line contains N space-separated integers.\nThe third line contains the integer k.",
+    "outputFormat": "N space-separated integers: the array after rotation.",
+    "constraints": "1 <= N <= 10^5, 0 <= k <= 10^9",
+    "examples": [
+      {
+        "input": "7\n1 2 3 4 5 6 7\n3",
+        "output": "5 6 7 1 2 3 4"
+      },
+      {
+        "input": "4\n-1 -100 3 99\n2",
+        "output": "3 99 -1 -100"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "7\n1 2 3 4 5 6 7\n3",
+        "expectedOutput": "5 6 7 1 2 3 4",
+        "isPublic": true
+      },
+      {
+        "input": "4\n-1 -100 3 99\n2",
+        "expectedOutput": "3 99 -1 -100",
+        "isPublic": true
+      },
+      {
+        "input": "1\n1\n0",
+        "expectedOutput": "1",
+        "isPublic": false
+      },
+      {
+        "input": "5\n1 2 3 4 5\n5",
+        "expectedOutput": "1 2 3 4 5",
+        "isPublic": false
+      },
+      {
+        "input": "3\n1 2 3\n7",
+        "expectedOutput": "3 1 2",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "n = int(input())\nnums = list(map(int, input().split()))\nk = int(input())\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "longest-unique-substring",
+    "title": "Longest Substring Without Repeating Characters",
+    "difficulty": "Medium",
+    "category": "Sliding Window",
+    "statement": "Given a string `s`, find the length of the longest substring without repeating characters.",
+    "inputFormat": "A single line containing the string s.",
+    "outputFormat": "A single integer: the length of the longest substring without repeating characters.",
+    "constraints": "0 <= s.length <= 5*10^4, s consists of English letters, digits, symbols and spaces.",
+    "examples": [
+      {
+        "input": "abcabcbb",
+        "output": "3"
+      },
+      {
+        "input": "bbbbb",
+        "output": "1"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "abcabcbb",
+        "expectedOutput": "3",
+        "isPublic": true
+      },
+      {
+        "input": "bbbbb",
+        "expectedOutput": "1",
+        "isPublic": true
+      },
+      {
+        "input": "pwwkew",
+        "expectedOutput": "3",
+        "isPublic": false
+      },
+      {
+        "input": "\n",
+        "expectedOutput": "0",
+        "isPublic": false
+      },
+      {
+        "input": "dvdf",
+        "expectedOutput": "3",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "s = input()\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "merge-intervals",
+    "title": "Merge Overlapping Intervals",
+    "difficulty": "Medium",
+    "category": "Arrays & Hashing",
+    "statement": "Given an array of intervals where `intervals[i] = [start_i, end_i]`, merge all overlapping intervals, and return an array of the non-overlapping intervals that cover all the intervals in the input, sorted by start time.",
+    "inputFormat": "The first line contains an integer N, the number of intervals.\nEach of the next N lines contains two space-separated integers: the start and end of an interval.",
+    "outputFormat": "Each merged interval on its own line, as two space-separated integers, sorted by start time.",
+    "constraints": "1 <= N <= 10^4, 0 <= start_i <= end_i <= 10^5",
+    "examples": [
+      {
+        "input": "4\n1 3\n2 6\n8 10\n15 18",
+        "output": "1 6\n8 10\n15 18"
+      },
+      {
+        "input": "2\n1 4\n4 5",
+        "output": "1 5"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "4\n1 3\n2 6\n8 10\n15 18",
+        "expectedOutput": "1 6\n8 10\n15 18",
+        "isPublic": true
+      },
+      {
+        "input": "2\n1 4\n4 5",
+        "expectedOutput": "1 5",
+        "isPublic": true
+      },
+      {
+        "input": "1\n1 4",
+        "expectedOutput": "1 4",
+        "isPublic": false
+      },
+      {
+        "input": "3\n1 4\n0 4\n3 5",
+        "expectedOutput": "0 5",
+        "isPublic": false
+      },
+      {
+        "input": "3\n1 4\n2 3\n5 7",
+        "expectedOutput": "1 4\n5 7",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "n = int(input())\nintervals = [tuple(map(int, input().split())) for _ in range(n)]\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "kth-largest",
+    "title": "Kth Largest Element in an Array",
+    "difficulty": "Medium",
+    "category": "Sorting",
+    "statement": "Given an integer array `nums` and an integer `k`, return the `k`th largest element in the array (the kth largest in sorted order, not the kth distinct element).",
+    "inputFormat": "The first line contains an integer N, the size of the array.\nThe second line contains N space-separated integers.\nThe third line contains the integer k.",
+    "outputFormat": "A single integer: the kth largest element.",
+    "constraints": "1 <= k <= N <= 10^5",
+    "examples": [
+      {
+        "input": "6\n3 2 1 5 6 4\n2",
+        "output": "5"
+      },
+      {
+        "input": "9\n3 2 3 1 2 4 5 5 6\n4",
+        "output": "4"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "6\n3 2 1 5 6 4\n2",
+        "expectedOutput": "5",
+        "isPublic": true
+      },
+      {
+        "input": "9\n3 2 3 1 2 4 5 5 6\n4",
+        "expectedOutput": "4",
+        "isPublic": true
+      },
+      {
+        "input": "1\n5\n1",
+        "expectedOutput": "5",
+        "isPublic": false
+      },
+      {
+        "input": "5\n1 1 1 1 1\n3",
+        "expectedOutput": "1",
+        "isPublic": false
+      },
+      {
+        "input": "4\n-1 -2 -3 -4\n1",
+        "expectedOutput": "-1",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "n = int(input())\nnums = list(map(int, input().split()))\nk = int(input())\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "group-anagrams",
+    "title": "Group Anagrams",
+    "difficulty": "Medium",
+    "category": "Arrays & Hashing",
+    "statement": "Given an array of strings, group the anagrams together. Two strings are anagrams if one can be formed by rearranging the letters of the other.\n\nPrint each group on its own line, with the words in the group space-separated in the same relative order they first appeared in the input. Order the groups by the position of their first word's first appearance in the input.",
+    "inputFormat": "The first line contains an integer N, the number of strings.\nThe second line contains N space-separated strings.",
+    "outputFormat": "Each group of anagrams on its own line, space-separated.",
+    "constraints": "1 <= N <= 10^4, 0 <= strs[i].length <= 100, lowercase English letters only.",
+    "examples": [
+      {
+        "input": "6\neat tea tan ate nat bat",
+        "output": "eat tea ate\ntan nat\nbat"
+      },
+      {
+        "input": "1\nabc",
+        "output": "abc"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "6\neat tea tan ate nat bat",
+        "expectedOutput": "eat tea ate\ntan nat\nbat",
+        "isPublic": true
+      },
+      {
+        "input": "1\nabc",
+        "expectedOutput": "abc",
+        "isPublic": true
+      },
+      {
+        "input": "3\nabc bca cab",
+        "expectedOutput": "abc bca cab",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "n = int(input())\nstrs = input().split() if n > 0 else []\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "search-rotated-array",
+    "title": "Search in Rotated Sorted Array",
+    "difficulty": "Medium",
+    "category": "Binary Search",
+    "statement": "There is an integer array `nums` sorted in ascending order (with distinct values), possibly rotated at an unknown pivot. Given the array and a `target` value, return the index of `target` if it exists in the array, or -1 if it does not. Your solution should run in O(log n) time.",
+    "inputFormat": "The first line contains an integer N, the size of the array.\nThe second line contains N space-separated integers (rotated sorted, distinct values).\nThe third line contains the target integer.",
+    "outputFormat": "A single integer: the index of target, or -1 if not found.",
+    "constraints": "1 <= N <= 5000, all values distinct, -10^4 <= nums[i], target <= 10^4",
+    "examples": [
+      {
+        "input": "7\n4 5 6 7 0 1 2\n0",
+        "output": "4"
+      },
+      {
+        "input": "7\n4 5 6 7 0 1 2\n3",
+        "output": "-1"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "7\n4 5 6 7 0 1 2\n0",
+        "expectedOutput": "4",
+        "isPublic": true
+      },
+      {
+        "input": "7\n4 5 6 7 0 1 2\n3",
+        "expectedOutput": "-1",
+        "isPublic": true
+      },
+      {
+        "input": "1\n1\n0",
+        "expectedOutput": "-1",
+        "isPublic": false
+      },
+      {
+        "input": "5\n1 3 5 7 9\n7",
+        "expectedOutput": "3",
+        "isPublic": false
+      },
+      {
+        "input": "6\n6 7 1 2 3 4 5\n1",
+        "expectedOutput": "2",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "n = int(input())\nnums = list(map(int, input().split()))\ntarget = int(input())\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "longest-increasing-subsequence",
+    "title": "Longest Increasing Subsequence",
+    "difficulty": "Hard",
+    "category": "Dynamic Programming",
+    "statement": "Given an integer array `nums`, return the length of the longest strictly increasing subsequence.",
+    "inputFormat": "The first line contains an integer N, the size of the array.\nThe second line contains N space-separated integers.",
+    "outputFormat": "A single integer: the length of the longest strictly increasing subsequence.",
+    "constraints": "1 <= N <= 2500, -10^4 <= nums[i] <= 10^4",
+    "examples": [
+      {
+        "input": "8\n10 9 2 5 3 7 101 18",
+        "output": "4"
+      },
+      {
+        "input": "1\n0",
+        "output": "1"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "8\n10 9 2 5 3 7 101 18",
+        "expectedOutput": "4",
+        "isPublic": true
+      },
+      {
+        "input": "1\n0",
+        "expectedOutput": "1",
+        "isPublic": true
+      },
+      {
+        "input": "4\n7 7 7 7",
+        "expectedOutput": "1",
+        "isPublic": false
+      },
+      {
+        "input": "6\n0 1 0 3 2 3",
+        "expectedOutput": "4",
+        "isPublic": false
+      },
+      {
+        "input": "5\n1 2 3 4 5",
+        "expectedOutput": "5",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "n = int(input())\nnums = list(map(int, input().split()))\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "minimum-window-substring",
+    "title": "Minimum Window Substring",
+    "difficulty": "Hard",
+    "category": "Sliding Window",
+    "statement": "Given two strings `s` and `t`, return the minimum window substring of `s` such that every character in `t` (including duplicates) is included in the window. If there is no such substring, return an empty string.",
+    "inputFormat": "The first line contains the string s.\nThe second line contains the string t.",
+    "outputFormat": "The minimum window substring, or an empty line if none exists.",
+    "constraints": "1 <= s.length, t.length <= 10^5",
+    "examples": [
+      {
+        "input": "ADOBECODEBANC\nABC",
+        "output": "BANC"
+      },
+      {
+        "input": "a\na",
+        "output": "a"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "ADOBECODEBANC\nABC",
+        "expectedOutput": "BANC",
+        "isPublic": true
+      },
+      {
+        "input": "a\na",
+        "expectedOutput": "a",
+        "isPublic": true
+      },
+      {
+        "input": "a\naa",
+        "expectedOutput": "",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "s = input()\nt = input()\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "number-of-islands",
+    "title": "Number of Islands",
+    "difficulty": "Hard",
+    "category": "Graphs",
+    "statement": "Given an `m x n` 2D binary grid which represents a map of `1`s (land) and `0`s (water), return the number of islands. An island is surrounded by water and is formed by connecting adjacent lands horizontally or vertically.",
+    "inputFormat": "The first line contains two integers m and n (rows and columns).\nEach of the next m lines contains a string of n characters ('0' or '1').",
+    "outputFormat": "A single integer: the number of islands.",
+    "constraints": "1 <= m, n <= 300",
+    "examples": [
+      {
+        "input": "4 5\n11110\n11010\n11000\n00000",
+        "output": "1"
+      },
+      {
+        "input": "4 5\n11000\n11000\n00100\n00011",
+        "output": "3"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "4 5\n11110\n11010\n11000\n00000",
+        "expectedOutput": "1",
+        "isPublic": true
+      },
+      {
+        "input": "4 5\n11000\n11000\n00100\n00011",
+        "expectedOutput": "3",
+        "isPublic": true
+      },
+      {
+        "input": "1 1\n1",
+        "expectedOutput": "1",
+        "isPublic": false
+      },
+      {
+        "input": "1 1\n0",
+        "expectedOutput": "0",
+        "isPublic": false
+      },
+      {
+        "input": "3 3\n101\n000\n101",
+        "expectedOutput": "4",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "m, n = map(int, input().split())\ngrid = [list(input()) for _ in range(m)]\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  },
+  {
+    "id": "merge-k-sorted-arrays",
+    "title": "Merge K Sorted Arrays",
+    "difficulty": "Hard",
+    "category": "Heap",
+    "statement": "You are given `k` sorted arrays. Merge all the arrays into one sorted array and return it.",
+    "inputFormat": "The first line contains an integer k, the number of arrays.\nEach of the next k lines starts with an integer giving the size of that array, followed by that many space-separated integers (already sorted ascending).",
+    "outputFormat": "A single line with all elements merged into one sorted array, space-separated.",
+    "constraints": "1 <= k <= 1000, total elements across all arrays <= 10^5",
+    "examples": [
+      {
+        "input": "3\n3 1 4 5\n3 1 3 4\n2 2 6",
+        "output": "1 1 2 3 4 4 5 6"
+      },
+      {
+        "input": "2\n0\n3 1 2 3",
+        "output": "1 2 3"
+      }
+    ],
+    "testCases": [
+      {
+        "input": "3\n3 1 4 5\n3 1 3 4\n2 2 6",
+        "expectedOutput": "1 1 2 3 4 4 5 6",
+        "isPublic": true
+      },
+      {
+        "input": "2\n0\n3 1 2 3",
+        "expectedOutput": "1 2 3",
+        "isPublic": true
+      },
+      {
+        "input": "1\n4 -5 -2 0 10",
+        "expectedOutput": "-5 -2 0 10",
+        "isPublic": false
+      }
+    ],
+    "starterTemplates": {
+      "Python": "k = int(input())\narrays = []\nfor _ in range(k):\n    parts = list(map(int, input().split()))\n    arrays.append(parts[1:])\n# Write your code here\n",
+      "C": "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "C++": "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+      "Java": "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n"
+    }
+  }
+]

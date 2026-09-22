@@ -1,0 +1,6 @@
+{
+  "name": "SkillForge Code",
+  "description": "Premium college coding platform with real-time feedback, LeetCode-style problem editor, quiz module, student progress tracking, and admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
