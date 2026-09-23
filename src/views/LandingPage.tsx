@@ -20,7 +20,7 @@ import {
   Star
 } from 'lucide-react';
 import { Quiz, LeaderboardEntry } from '../types';
-import { quizzesApi, leaderboardApi } from '../services/api';
+import { quizzesApi, leaderboardApi, problemsApi } from '../services/api';
 
 interface LandingPageProps {
   onNavigate: (view: string) => void;
@@ -38,11 +38,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
       setPreviewQuizzes((live.length > 0 ? live : all).slice(0, 2));
     }).catch(() => {});
     leaderboardApi.list().then((entries) => setPreviewLeaderboard(entries.slice(0, 3))).catch(() => {});
-    fetch('/api/health').then(() =>
-      Promise.all([
-        fetch('/api/problems').then(r => r.json()).then((d: any[]) => d.length).catch(() => 0),
-      ]).then(([problems]) => setStats(s => ({ ...s, problems })))
-    ).catch(() => {});
+    problemsApi.list().then((problems) => {
+      setStats((currentStats) => ({ ...currentStats, problems: problems.length }));
+    }).catch(() => {});
   }, []);
 
   const navigateToProblemArena = () => {
