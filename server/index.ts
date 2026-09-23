@@ -84,8 +84,8 @@ function toStudent(row: any) {
 }
 
 async function toProblemSummary(row: any, studentId?: string) {
-  let status: 'Solved' | 'Attempted' | 'Unsolved' = 'Unsolved';
-  if (studentId) {
+  let status: 'Solved' | 'Attempted' | 'Unsolved' = row.problem_status || 'Unsolved';
+  if (studentId && !row.problem_status) {
     const solved = await db.prepare(`SELECT 1 FROM submissions WHERE user_id=? AND problem_id=? AND status='Accepted' LIMIT 1`).get(studentId, row.id);
     if (solved) status = 'Solved';
     else {
@@ -95,7 +95,7 @@ async function toProblemSummary(row: any, studentId?: string) {
   }
   const attempts = row.attempt_count || 0;
   const acceptanceRate = attempts > 0 ? Math.round((row.solved_count / attempts) * 1000) / 10 : 0;
-  const testCaseCount = (await db.prepare(`SELECT COUNT(*)::int c FROM test_cases WHERE problem_id=?`).get(row.id)).c;
+  const testCaseCount = row.test_case_count ?? (await db.prepare(`SELECT COUNT(*)::int c FROM test_cases WHERE problem_id=?`).get(row.id)).c;
   return {
     id: row.id,
     title: row.title,
@@ -289,7 +289,24 @@ app.post('/api/auth/reset-password', async (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.get('/api/problems', optionalAuth, async (req: AuthedRequest, res) => {
-  const rows = await db.prepare(`SELECT * FROM problems ORDER BY created_at ASC`).all();
+  const rows = await db.prepare(`
+    SELECT p.*,
+      (SELECT COUNT(*)::int FROM test_cases tc WHERE tc.problem_id = p.id) AS test_case_count,
+      CASE
+        WHEN ? IS NULL THEN 'Unsolved'
+        WHEN EXISTS (
+          SELECT 1 FROM submissions s
+          WHERE s.user_id = ? AND s.problem_id = p.id AND s.status = 'Accepted'
+        ) THEN 'Solved'
+        WHEN EXISTS (
+          SELECT 1 FROM submissions s
+          WHERE s.user_id = ? AND s.problem_id = p.id
+        ) THEN 'Attempted'
+        ELSE 'Unsolved'
+      END AS problem_status
+    FROM problems p
+    ORDER BY p.created_at ASC
+  `).all(req.user?.role === 'student' ? req.user.id : null, req.user?.role === 'student' ? req.user.id : null, req.user?.role === 'student' ? req.user.id : null);
   const studentId = req.user?.role === 'student' ? req.user.id : undefined;
   res.json(await Promise.all(rows.map((r: any) => toProblemSummary(r, studentId))));
 });
