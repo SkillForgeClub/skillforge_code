@@ -48,45 +48,11 @@ const CORE_ACHIEVEMENT_BADGES: CoreAchievementBadge[] = [
   {
     id: 'badge-bronze',
     title: 'Bronze Coding Badge',
-    description: 'Recognizes core progress. Unlocked by solving at least 10 coding problems.',
+    description: 'Recognizes core progress. Unlocked by solving at least 100 coding problems.',
     icon: '🥉',
     unlockedBg: 'bg-orange-500/10 dark:bg-orange-950/20',
     unlockedText: 'text-orange-600 dark:text-orange-400',
     unlockedBorder: 'border-orange-500/25 dark:border-orange-500/10',
-    lockedBg: 'bg-zinc-100/50 dark:bg-zinc-950/20',
-    lockedText: 'text-zinc-400 dark:text-zinc-650',
-    lockedBorder: 'border-zinc-200 dark:border-zinc-800/80',
-    criteria: 'Solve 10+ Problems',
-    checkUnlocked: (student) => {
-      const totalSolved = student.problemsSolved.easy + student.problemsSolved.medium + student.problemsSolved.hard;
-      return totalSolved >= 10;
-    }
-  },
-  {
-    id: 'badge-silver',
-    title: 'Silver Coding Badge',
-    description: 'Demonstrates algorithms competency. Unlocked by solving at least 50 coding problems.',
-    icon: '🥈',
-    unlockedBg: 'bg-slate-500/10 dark:bg-slate-950/20',
-    unlockedText: 'text-slate-600 dark:text-slate-400',
-    unlockedBorder: 'border-slate-500/25 dark:border-slate-500/10',
-    lockedBg: 'bg-zinc-100/50 dark:bg-zinc-950/20',
-    lockedText: 'text-zinc-400 dark:text-zinc-650',
-    lockedBorder: 'border-zinc-200 dark:border-zinc-800/80',
-    criteria: 'Solve 50+ Problems',
-    checkUnlocked: (student) => {
-      const totalSolved = student.problemsSolved.easy + student.problemsSolved.medium + student.problemsSolved.hard;
-      return totalSolved >= 50;
-    }
-  },
-  {
-    id: 'badge-gold',
-    title: 'Gold Coding Badge',
-    description: 'Marks advanced software expertise. Unlocked by solving at least 100 coding problems.',
-    icon: '🥇',
-    unlockedBg: 'bg-amber-500/10 dark:bg-amber-950/20',
-    unlockedText: 'text-amber-600 dark:text-amber-400',
-    unlockedBorder: 'border-amber-500/25 dark:border-amber-500/10',
     lockedBg: 'bg-zinc-100/50 dark:bg-zinc-950/20',
     lockedText: 'text-zinc-400 dark:text-zinc-650',
     lockedBorder: 'border-zinc-200 dark:border-zinc-800/80',
@@ -97,9 +63,43 @@ const CORE_ACHIEVEMENT_BADGES: CoreAchievementBadge[] = [
     }
   },
   {
+    id: 'badge-silver',
+    title: 'Silver Coding Badge',
+    description: 'Demonstrates algorithms competency. Unlocked by solving at least 500 coding problems.',
+    icon: '🥈',
+    unlockedBg: 'bg-slate-500/10 dark:bg-slate-950/20',
+    unlockedText: 'text-slate-600 dark:text-slate-400',
+    unlockedBorder: 'border-slate-500/25 dark:border-slate-500/10',
+    lockedBg: 'bg-zinc-100/50 dark:bg-zinc-950/20',
+    lockedText: 'text-zinc-400 dark:text-zinc-650',
+    lockedBorder: 'border-zinc-200 dark:border-zinc-800/80',
+    criteria: 'Solve 500+ Problems',
+    checkUnlocked: (student) => {
+      const totalSolved = student.problemsSolved.easy + student.problemsSolved.medium + student.problemsSolved.hard;
+      return totalSolved >= 500;
+    }
+  },
+  {
+    id: 'badge-gold',
+    title: 'Gold Coding Badge',
+    description: 'Marks advanced software expertise. Unlocked by solving at least 1000 coding problems.',
+    icon: '🥇',
+    unlockedBg: 'bg-amber-500/10 dark:bg-amber-950/20',
+    unlockedText: 'text-amber-600 dark:text-amber-400',
+    unlockedBorder: 'border-amber-500/25 dark:border-amber-500/10',
+    lockedBg: 'bg-zinc-100/50 dark:bg-zinc-950/20',
+    lockedText: 'text-zinc-400 dark:text-zinc-650',
+    lockedBorder: 'border-zinc-200 dark:border-zinc-800/80',
+    criteria: 'Solve 1000+ Problems',
+    checkUnlocked: (student) => {
+      const totalSolved = student.problemsSolved.easy + student.problemsSolved.medium + student.problemsSolved.hard;
+      return totalSolved >= 1000;
+    }
+  },
+  {
     id: 'badge-platinum',
-    title: 'Platinum Coding Badge',
-    description: 'Granted to elite tier competitors. Unlocked by solving at least 150 coding problems.',
+    title: 'Premium Coding Badge',
+    description: 'Granted to elite tier competitors. Unlocked by solving at least 1500 coding problems.',
     icon: '💎',
     unlockedBg: 'bg-cyan-500/10 dark:bg-cyan-950/20',
     unlockedText: 'text-cyan-600 dark:text-cyan-400',
@@ -107,16 +107,16 @@ const CORE_ACHIEVEMENT_BADGES: CoreAchievementBadge[] = [
     lockedBg: 'bg-zinc-100/50 dark:bg-zinc-950/20',
     lockedText: 'text-zinc-400 dark:text-zinc-650',
     lockedBorder: 'border-zinc-200 dark:border-zinc-800/80',
-    criteria: 'Solve 150+ Problems',
+    criteria: 'Solve 1500+ Problems',
     checkUnlocked: (student) => {
       const totalSolved = student.problemsSolved.easy + student.problemsSolved.medium + student.problemsSolved.hard;
-      return totalSolved >= 150;
+      return totalSolved >= 1500;
     }
   },
   {
     id: 'badge-diamond',
     title: 'Diamond Coding Badge',
-    description: 'Highest competitive rank. Unlocked by solving at least 200 coding problems.',
+    description: 'Highest competitive rank. Unlocked by solving at least 2000 coding problems.',
     icon: '👑',
     unlockedBg: 'bg-indigo-500/10 dark:bg-indigo-950/20',
     unlockedText: 'text-indigo-600 dark:text-indigo-400',
@@ -124,10 +124,10 @@ const CORE_ACHIEVEMENT_BADGES: CoreAchievementBadge[] = [
     lockedBg: 'bg-zinc-100/50 dark:bg-zinc-950/20',
     lockedText: 'text-zinc-400 dark:text-zinc-650',
     lockedBorder: 'border-zinc-200 dark:border-zinc-800/80',
-    criteria: 'Solve 200+ Problems',
+    criteria: 'Solve 2000+ Problems',
     checkUnlocked: (student) => {
       const totalSolved = student.problemsSolved.easy + student.problemsSolved.medium + student.problemsSolved.hard;
-      return totalSolved >= 200;
+      return totalSolved >= 2000;
     }
   }
 ];
