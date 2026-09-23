@@ -439,7 +439,7 @@ app.delete('/api/problems/:id', requireAuth, requireAdmin, async (req, res) => {
 // Submissions / Judge - async, queued (like a real judge worker pool)
 // ---------------------------------------------------------------------------
 
-const STAR_THRESHOLDS = [0, 50, 150, 350, 700]; // points required for 1★, 2★, 3★, 4★, 5★
+const STAR_THRESHOLDS = [1500, 2500, 4000, 5500, 6500]; // points required for 1★, 2★, 3★, 4★, 5★
 function computeStarRating(points: number): number {
   let stars = 1;
   for (let i = 1; i < STAR_THRESHOLDS.length; i++) {
@@ -607,7 +607,7 @@ app.post('/api/submissions/submit', requireAuth, async (req: AuthedRequest, res)
 
       if (!alreadySolvedBefore) {
         await db.prepare(`UPDATE problems SET solved_count = solved_count + 1 WHERE id=?`).run(problemId);
-        const pointsAward = probRow.difficulty === 'Hard' ? 50 : probRow.difficulty === 'Medium' ? 25 : 10;
+        const pointsAward = probRow.difficulty === 'Hard' ? 8 : probRow.difficulty === 'Medium' ? 4 : 2;
         const col = probRow.difficulty === 'Hard' ? 'hard_solved' : probRow.difficulty === 'Medium' ? 'medium_solved' : 'easy_solved';
         const userRow = await db.prepare(`SELECT * FROM users WHERE id=?`).get(req.user!.id);
         const today = new Date().toISOString().slice(0, 10);

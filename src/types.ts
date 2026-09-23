@@ -6,8 +6,8 @@
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
 // Points required for 1★ through 5★ star ratings. Must match STAR_THRESHOLDS in server/index.ts -
-// points come from solving problems (10/25/50 for Easy/Medium/Hard).
-export const STAR_THRESHOLDS = [0, 50, 150, 350, 700];
+// points come from solving problems (2/4/8 for Easy/Medium/Hard).
+export const STAR_THRESHOLDS = [1500, 2500, 4000, 5500, 6500];
 
 export type ProgrammingLanguage = 'C' | 'C++' | 'Java' | 'Python';
 
