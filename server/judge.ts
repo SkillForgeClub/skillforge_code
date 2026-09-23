@@ -29,12 +29,14 @@ export interface RunResult {
   memoryKb: number;
 }
 
-const TIME_LIMIT_MS = 5000;
-const TIME_LIMIT_SEC = Math.ceil(TIME_LIMIT_MS / 1000);
-const MEMORY_LIMIT_KB = 256 * 1024;
-const JAVA_HEAP_MB = 256;
-const MAX_OUTPUT_BYTES = 200_000;
-const COMPILE_TIMEOUT_MS = 15000;
+// Defaults — all overridable via env vars or per-problem options
+const DEFAULT_TIME_LIMIT_MS = Number(process.env.JUDGE_TIMEOUT_MS) || 5000;
+const DEFAULT_MEMORY_LIMIT_MB = Number(process.env.JUDGE_MEMORY_MB) || 256;
+const DEFAULT_PIDS_LIMIT = Number(process.env.JUDGE_PIDS_LIMIT) || 64;
+const DEFAULT_CPU_LIMIT = process.env.JUDGE_CPU_LIMIT || '1';
+const MAX_OUTPUT_BYTES = (Number(process.env.JUDGE_OUTPUT_LIMIT_KB) || 1024) * 1024;
+const MAX_SOURCE_BYTES = (Number(process.env.JUDGE_MAX_SOURCE_KB) || 256) * 1024;
+const COMPILE_TIMEOUT_MS = Number(process.env.JUDGE_COMPILE_TIMEOUT_MS) || 15000;
 
 const JUDGE_RUNTIME = (process.env.JUDGE_RUNTIME || 'host') as 'host' | 'docker';
 const JUDGE_IMAGE = process.env.JUDGE_IMAGE || 'skillforge-judge:latest';
@@ -93,18 +95,21 @@ function containerPath(workDir: string, filePath: string): string {
   return path.posix.join(containerWorkDir(workDir), relativePath);
 }
 
-function dockerRunPrefixArgs(workDir: string, containerName: string): string[] {
+function dockerRunPrefixArgs(workDir: string, containerName: string, memMb: number): string[] {
   const mountedDir = containerWorkDir(workDir);
+  const memBytes = memMb * 1024 * 1024;
   return [
     'run', '--rm', '--name', containerName,
-    '-i',                                         // attach stdin so child.stdin.write works
+    '-i',
     '--network', 'none',
-    '--memory', `${MEMORY_LIMIT_KB}k`,
-    '--memory-swap', `${MEMORY_LIMIT_KB}k`,
-    '--cpus', '1',
-    '--pids-limit', '64',
+    '--memory', `${memBytes}`,
+    '--memory-swap', `${memBytes}`,
+    '--cpus', DEFAULT_CPU_LIMIT,
+    '--pids-limit', String(DEFAULT_PIDS_LIMIT),
     '--security-opt', 'no-new-privileges',
     '--cap-drop', 'ALL',
+    '--read-only',
+    '--tmpfs', `${mountedDir}:rw,noexec,nosuid,size=${memMb}m`,
     '-v', `${workDir}:${mountedDir}:rw`,
     '-w', mountedDir,
     JUDGE_IMAGE,
@@ -135,6 +140,7 @@ function runProcessAsync(
   input: string,
   cwd: string,
   timeoutMs: number,
+  memMb: number,
   useUlimit = false,
 ): Promise<RunOutcome> {
   return new Promise((resolve) => {
@@ -144,11 +150,13 @@ function runProcessAsync(
     let child: ReturnType<typeof spawn>;
 
     if (JUDGE_RUNTIME === 'docker') {
-      child = spawn('docker', [...dockerRunPrefixArgs(cwd, containerName), cmd, ...args]);
+      child = spawn('docker', [...dockerRunPrefixArgs(cwd, containerName, memMb), cmd, ...args]);
     } else if (!IS_WINDOWS && useUlimit) {
       // Linux/macOS: wrap with bash + ulimit for memory/CPU caps
       const quotedArgs = [cmd, ...args].map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ');
-      const shellCmd = `ulimit -v ${MEMORY_LIMIT_KB}; ulimit -t ${TIME_LIMIT_SEC}; exec ${quotedArgs}`;
+      const memKb = memMb * 1024;
+      const timeSec = Math.ceil(timeoutMs / 1000);
+      const shellCmd = `ulimit -v ${memKb}; ulimit -t ${timeSec}; exec ${quotedArgs}`;
       child = spawn('/bin/bash', ['-c', shellCmd], { cwd, detached: true });
     } else {
       // Windows host mode or no-ulimit: spawn directly
@@ -211,11 +219,9 @@ function runProcessAsync(
 // Compiler — spawns directly (argv), no shell
 // ---------------------------------------------------------------------------
 
-async function compileAsync(cmd: string, args: string[], cwd: string): Promise<{ ok: boolean; stderr?: string }> {
+async function compileAsync(cmd: string, args: string[], cwd: string, memMb: number): Promise<{ ok: boolean; stderr?: string }> {
   return new Promise((resolve) => {
     const containerName = `skillforge-compile-${crypto.randomBytes(6).toString('hex')}`;
-    // Remap any absolute host paths inside cwd to their container equivalents.
-    // path.relative works correctly on Windows (backslash) paths.
     const remapArg = (a: string) => {
       const rel = path.relative(cwd, a);
       return (!rel.startsWith('..') && !path.isAbsolute(rel))
@@ -223,7 +229,7 @@ async function compileAsync(cmd: string, args: string[], cwd: string): Promise<{
         : a;
     };
     const child = JUDGE_RUNTIME === 'docker'
-      ? spawn('docker', [...dockerRunPrefixArgs(cwd, containerName), cmd, ...args.map(remapArg)])
+      ? spawn('docker', [...dockerRunPrefixArgs(cwd, containerName, memMb), cmd, ...args.map(remapArg)])
       : spawn(cmd, args, { cwd });
 
     let stderr = '';
@@ -254,7 +260,15 @@ interface CompileOutcome {
   run: (input: string) => Promise<RunOutcome>;
 }
 
-async function prepare(language: Language, code: string, workDir: string): Promise<CompileOutcome> {
+export interface JudgeOptions {
+  timeLimitMs?: number;
+  memoryLimitMb?: number;
+}
+
+async function prepare(language: Language, code: string, workDir: string, opts: JudgeOptions = {}): Promise<CompileOutcome> {
+  const timeLimitMs = opts.timeLimitMs ?? DEFAULT_TIME_LIMIT_MS;
+  const memMb = opts.memoryLimitMb ?? DEFAULT_MEMORY_LIMIT_MB;
+  const javaHeapMb = Math.min(memMb, 512);
   if (JUDGE_RUNTIME === 'docker' && !toolAvailable('docker')) {
     return {
       ok: false,
@@ -269,15 +283,13 @@ async function prepare(language: Language, code: string, workDir: string): Promi
       fs.writeFileSync(file, code);
       if (JUDGE_RUNTIME === 'docker') {
         const execFile = containerPath(workDir, file);
-        return { ok: true, run: (input) => runProcessAsync('python3', [execFile], input, workDir, TIME_LIMIT_MS, true) };
+        return { ok: true, run: (input) => runProcessAsync('python3', [execFile], input, workDir, timeLimitMs, memMb, true) };
       }
-      // On Windows, 'python3' may resolve to the Microsoft Store stub (exits immediately).
-      // Verify the interpreter actually works before trusting it.
       const python = resolvePython();
       if (!python) {
         return { ok: false, stderr: 'Python interpreter is not installed on this server.', run: () => Promise.resolve(DEAD_RUN) };
       }
-      return { ok: true, run: (input) => runProcessAsync(python, [file], input, workDir, TIME_LIMIT_MS, true) };
+      return { ok: true, run: (input) => runProcessAsync(python, [file], input, workDir, timeLimitMs, memMb, true) };
     }
 
     case 'C': {
@@ -287,10 +299,10 @@ async function prepare(language: Language, code: string, workDir: string): Promi
       if (JUDGE_RUNTIME !== 'docker' && !toolAvailable('gcc')) {
         return { ok: false, stderr: 'C compiler (gcc) is not installed on this server.', run: () => Promise.resolve(DEAD_RUN) };
       }
-      const compiled = await compileAsync('gcc', [src, '-O2', '-o', exe, '-lm'], workDir);
+      const compiled = await compileAsync('gcc', [src, '-O2', '-o', exe, '-lm'], workDir, memMb);
       if (!compiled.ok) return { ok: false, stderr: compiled.stderr, run: () => Promise.resolve(DEAD_RUN) };
       const cExe = JUDGE_RUNTIME === 'docker' ? containerPath(workDir, exe) : exe;
-      return { ok: true, run: (input) => runProcessAsync(cExe, [], input, workDir, TIME_LIMIT_MS, true) };
+      return { ok: true, run: (input) => runProcessAsync(cExe, [], input, workDir, timeLimitMs, memMb, true) };
     }
 
     case 'C++': {
@@ -300,10 +312,10 @@ async function prepare(language: Language, code: string, workDir: string): Promi
       if (JUDGE_RUNTIME !== 'docker' && !toolAvailable('g++')) {
         return { ok: false, stderr: 'C++ compiler (g++) is not installed on this server.', run: () => Promise.resolve(DEAD_RUN) };
       }
-      const compiled = await compileAsync('g++', [src, '-O2', '-std=c++17', '-o', exe], workDir);
+      const compiled = await compileAsync('g++', [src, '-O2', '-std=c++17', '-o', exe], workDir, memMb);
       if (!compiled.ok) return { ok: false, stderr: compiled.stderr, run: () => Promise.resolve(DEAD_RUN) };
       const cppExe = JUDGE_RUNTIME === 'docker' ? containerPath(workDir, exe) : exe;
-      return { ok: true, run: (input) => runProcessAsync(cppExe, [], input, workDir, TIME_LIMIT_MS, true) };
+      return { ok: true, run: (input) => runProcessAsync(cppExe, [], input, workDir, timeLimitMs, memMb, true) };
     }
 
     case 'Java': {
@@ -312,15 +324,15 @@ async function prepare(language: Language, code: string, workDir: string): Promi
       if (JUDGE_RUNTIME !== 'docker' && !toolAvailable('javac')) {
         return { ok: false, stderr: 'Java compiler (javac) is not installed on this server.', run: () => Promise.resolve(DEAD_RUN) };
       }
-      const compiled = await compileAsync('javac', [src], workDir);
+      const compiled = await compileAsync('javac', [src], workDir, memMb);
       if (!compiled.ok) return { ok: false, stderr: compiled.stderr, run: () => Promise.resolve(DEAD_RUN) };
       const classPath = JUDGE_RUNTIME === 'docker' ? containerWorkDir(workDir) : workDir;
       return {
         ok: true,
         run: (input) => runProcessAsync(
           'java',
-          [`-Xmx${JAVA_HEAP_MB}m`, '-XX:+UseSerialGC', '-cp', classPath, 'Solution'],
-          input, workDir, TIME_LIMIT_MS, false
+          [`-Xmx${javaHeapMb}m`, '-XX:+UseSerialGC', '-cp', classPath, 'Solution'],
+          input, workDir, timeLimitMs, memMb, false
         ),
       };
     }
@@ -346,10 +358,20 @@ export interface JudgeSummary {
   memoryKb: number;
 }
 
-export async function judge(language: Language, code: string, cases: JudgeCase[]): Promise<JudgeSummary> {
+export async function judge(language: Language, code: string, cases: JudgeCase[], opts: JudgeOptions = {}): Promise<JudgeSummary> {
+  // Validate source size before doing anything
+  if (Buffer.byteLength(code, 'utf-8') > MAX_SOURCE_BYTES) {
+    const msg = `Source code exceeds maximum allowed size (${Math.round(MAX_SOURCE_BYTES / 1024)}KB).`;
+    return {
+      overallStatus: 'Compilation Error',
+      compileError: msg,
+      cases: cases.map(c => ({ input: c.input, expected: c.expectedOutput, passed: false, isPublic: c.isPublic, status: 'Compilation Error' as const, stdout: '', stderr: msg, timeMs: 0, memoryKb: 0 })),
+      timeMs: 0, memoryKb: 0,
+    };
+  }
   const workDir = makeWorkDir();
   try {
-    const compiled = await prepare(language, code, workDir);
+    const compiled = await prepare(language, code, workDir, opts);
     if (!compiled.ok) {
       return {
         overallStatus: 'Compilation Error',
@@ -399,10 +421,13 @@ export async function judge(language: Language, code: string, cases: JudgeCase[]
   }
 }
 
-export async function runCustom(language: Language, code: string, input: string): Promise<RunResult> {
+export async function runCustom(language: Language, code: string, input: string, opts: JudgeOptions = {}): Promise<RunResult> {
+  if (Buffer.byteLength(code, 'utf-8') > MAX_SOURCE_BYTES) {
+    return { status: 'Compilation Error', stdout: '', stderr: 'Source code exceeds maximum allowed size.', timeMs: 0, memoryKb: 0 };
+  }
   const workDir = makeWorkDir();
   try {
-    const compiled = await prepare(language, code, workDir);
+    const compiled = await prepare(language, code, workDir, opts);
     if (!compiled.ok) {
       return { status: 'Compilation Error', stdout: '', stderr: compiled.stderr || '', timeMs: 0, memoryKb: 0 };
     }

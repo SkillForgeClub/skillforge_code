@@ -101,6 +101,8 @@ CREATE TABLE IF NOT EXISTS problems (
   starter_templates TEXT NOT NULL DEFAULT '{}',
   solved_count INTEGER NOT NULL DEFAULT 0,
   attempt_count INTEGER NOT NULL DEFAULT 0,
+  time_limit_ms INTEGER,
+  memory_limit_mb INTEGER,
   created_at TEXT NOT NULL
 );
 
@@ -196,9 +198,18 @@ CREATE TABLE IF NOT EXISTS password_resets (
 
 CREATE INDEX IF NOT EXISTS idx_submissions_user ON submissions(user_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_problem ON submissions(problem_id);
+CREATE INDEX IF NOT EXISTS idx_submissions_contest ON submissions(contest_id);
+CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status);
+CREATE INDEX IF NOT EXISTS idx_submissions_created ON submissions(submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_testcases_problem ON test_cases(problem_id);
 CREATE INDEX IF NOT EXISTS idx_quizquestions_quiz ON quiz_questions(quiz_id);
 CREATE INDEX IF NOT EXISTS idx_contestproblems_contest ON contest_problems(contest_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_points ON users(points DESC);
+CREATE INDEX IF NOT EXISTS idx_problems_difficulty ON problems(difficulty);
+CREATE INDEX IF NOT EXISTS idx_contest_reg_contest ON contest_registrations(contest_id);
+CREATE INDEX IF NOT EXISTS idx_contest_reg_user ON contest_registrations(user_id);
 `;
 
 /** Creates every table/index if missing. Safe to run on every boot. */

@@ -260,8 +260,34 @@ export const adminApi = {
 };
 
 // ---------------------------------------------------------------------------
-// Contests
+// Server-Sent Events — real-time submission status
 // ---------------------------------------------------------------------------
+
+/**
+ * Opens an SSE connection to the backend. Returns a cleanup function.
+ * The backend pushes 'submission.updated' events when a verdict is ready.
+ */
+export function connectSSE(
+  onEvent: (data: Record<string, unknown>) => void,
+  onError?: () => void
+): () => void {
+  const token = getToken();
+  if (!token) return () => {};
+
+  const url = `${API_BASE_URL}/api/events`;
+  const es = new EventSource(url + `?token=${encodeURIComponent(token)}`);
+
+  es.addEventListener('submission.updated', (e: MessageEvent) => {
+    try { onEvent(JSON.parse(e.data)); } catch { /* ignore malformed */ }
+  });
+
+  es.onerror = () => {
+    onError?.();
+    // EventSource auto-reconnects — no manual retry needed
+  };
+
+  return () => es.close();
+}
 
 export const contestsApi = {
   list: () => request<Contest[]>('/contests'),

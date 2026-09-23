@@ -6,14 +6,17 @@ import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
 import { db, initSchema } from './db.js';
 import { seedIfEmpty } from './seed.js';
 import { signToken, requireAuth, requireAdmin, optionalAuth, AuthedRequest } from './auth.js';
 import { judge, runCustom, Language } from './judge.js';
 import { runQueued, queueStats } from './queue.js';
+import { getQueueStats } from './jobQueue.js';
 import { contestsRouter } from './contests.js';
 import { checkRateLimit, markSubmitted, markFinished } from './rateLimit.js';
 import { sendResetCodeEmail } from './email.js';
+import { sseConnect, sseConnectionCount } from './sse.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -25,8 +28,32 @@ const PORT = Number(process.env.PORT) || 8787;
 // deployment (same-origin requests don't need CORS at all), but set this for a real
 // split (Vercel + separate backend) production deployment.
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
-app.use(cors(ALLOWED_ORIGIN ? { origin: ALLOWED_ORIGIN } : {}));
+app.use(cors(ALLOWED_ORIGIN ? { origin: ALLOWED_ORIGIN, credentials: true } : {}));
 app.use(express.json({ limit: '2mb' }));
+
+// Trust proxy headers (needed when behind Nginx/Render/Vercel)
+app.set('trust proxy', 1);
+
+// ── Rate limiting ──────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: Number(process.env.AUTH_RATE_LIMIT) || 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please wait before trying again.' },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: Number(process.env.API_RATE_LIMIT) || 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' },
+});
+
+app.use('/api/auth', authLimiter);
+app.use('/api/v1/auth', authLimiter);
+app.use('/api', apiLimiter);
 
 function newId(prefix: string) {
   return `${prefix}-${crypto.randomBytes(6).toString('hex')}`;
@@ -422,9 +449,44 @@ setInterval(() => {
   for (const [id, job] of runJobs) if (job.createdAt < cutoff) runJobs.delete(id);
 }, 60 * 1000).unref();
 
-app.get('/api/submissions/queue-status', (_req, res) => {
-  res.json(queueStats());
+// ── SSE endpoint — real-time submission status ─────────────────────────────
+// EventSource doesn't support custom headers, so we accept the JWT as a query param.
+import { JWT_SECRET } from './auth.js';
+import jwt from 'jsonwebtoken';
+
+function sseAuth(req: express.Request, res: express.Response): string | null {
+  const token = (req.query.token as string) || req.headers.authorization?.replace('Bearer ', '');
+  if (!token) { res.status(401).end(); return null; }
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { id: string };
+    return payload.id;
+  } catch { res.status(401).end(); return null; }
+}
+
+app.get('/api/events', (req, res) => {
+  const userId = sseAuth(req, res);
+  if (!userId) return;
+  sseConnect(userId, req, res);
 });
+app.get('/api/v1/events', (req, res) => {
+  const userId = sseAuth(req, res);
+  if (!userId) return;
+  sseConnect(userId, req, res);
+});
+
+// ── Queue status (enhanced with BullMQ stats when available) ───────────────
+app.get('/api/submissions/queue-status', async (_req, res) => {
+  const stats = await getQueueStats();
+  res.json(stats);
+});
+
+// ── Health check (enhanced) ────────────────────────────────────────────────
+app.get('/api/health', (_req, res) => res.json({
+  ok: true,
+  uptime: process.uptime(),
+  sseConnections: sseConnectionCount(),
+  ts: new Date().toISOString(),
+}));
 
 app.post('/api/submissions/run', requireAuth, async (req: AuthedRequest, res) => {
   const { problemId, language, code, customInput } = req.body || {};
@@ -804,9 +866,17 @@ app.get('/api/admin/stats', requireAuth, requireAdmin, async (_req, res) => {
 // Health check + static frontend serving (production)
 // ---------------------------------------------------------------------------
 
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+// Health check is registered earlier (before routes) — see above.
+
+// ── /api/v1 alias — all existing /api/* routes also available at /api/v1/* ─
+// This provides forward-compatible versioning without breaking existing clients.
+app.use('/api/v1', (req, _res, next) => {
+  req.url = req.url; // passthrough — routes below handle both prefixes
+  next();
+});
 
 app.use('/api/contests', contestsRouter);
+app.use('/api/v1/contests', contestsRouter);
 
 const distDir = path.join(__dirname, '..', 'dist');
 if (fs.existsSync(distDir)) {
