@@ -449,9 +449,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-600 text-white">
-                  <span className="font-black text-xs">S</span>
-                </div>
+                <img
+                  src="/logo.png"
+                  alt="SkillForge Code logo"
+                  className="h-8 w-8 object-contain rounded-lg"
+                />
                 <span className="font-black text-sm text-white tracking-wider">SkillForge Code</span>
               </div>
               <p className="text-[11px] text-zinc-500 leading-relaxed">
