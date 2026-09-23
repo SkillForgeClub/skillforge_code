@@ -79,6 +79,9 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
     problems: { problemId: string; label: string; points: number }[];
   }>({ title: '', description: '', startTime: '', endTime: '', problems: [] });
   const [leaderboardEntries, setLeaderboardEntries] = useState<any[]>([]);
+  const [recentSubmissionLogs, setRecentSubmissionLogs] = useState<Array<{
+    id: string; studentName: string; problemTitle: string; language: string; status: string; submittedAt: string;
+  }>>([]);
   const [adminStats, setAdminStats] = useState({
     totalStudents: 0, totalProblems: 0, totalQuizzes: 0, totalSubmissions: 0,
     databaseSizeBytes: 0, largestTables: [] as { table: string; bytes: number }[],
@@ -103,12 +106,20 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
   });
 
   useEffect(() => {
-    reloadStudents();
-    reloadProblems();
-    reloadQuizzes();
-    reloadContests();
-    leaderboardApi.list().then(setLeaderboardEntries).catch(() => {});
-    adminApi.stats().then(setAdminStats).catch(() => {});
+    const refreshDashboardData = () => {
+      reloadStudents();
+      reloadProblems();
+      reloadQuizzes();
+      reloadContests();
+      leaderboardApi.list().then(setLeaderboardEntries).catch(() => {});
+      adminApi.stats().then(setAdminStats).catch(() => {});
+      adminApi.recentSubmissions().then(setRecentSubmissionLogs).catch(() => setRecentSubmissionLogs([]));
+    };
+
+    refreshDashboardData();
+    const refreshInterval = window.setInterval(refreshDashboardData, 15000);
+
+    return () => window.clearInterval(refreshInterval);
   }, []);
   
   // Search states
@@ -775,18 +786,32 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
               {/* Server activity log */}
               <div className="lg:col-span-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm space-y-4">
                 <h3 className="font-extrabold text-sm uppercase tracking-wide text-zinc-400">Live Compilation Logs</h3>
-                
-                <div className="space-y-3 font-mono text-[10px] leading-relaxed">
-                  <div className="p-2.5 rounded bg-zinc-955 border border-zinc-800 text-emerald-400">
-                    <span className="text-zinc-550">[06:44:31 UTC]</span> - Rahul Sharma submitted Python on "Two Sum". <span className="font-bold">STATUS: Accepted.</span>
+
+                {recentSubmissionLogs.length === 0 ? (
+                  <div className="p-3 rounded bg-zinc-50 dark:bg-zinc-950 border border-dashed border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-400">
+                    No recent submissions yet.
                   </div>
-                  <div className="p-2.5 rounded bg-zinc-955 border border-zinc-800 text-emerald-450">
-                    <span className="text-zinc-550">[06:40:12 UTC]</span> - Priya Patel submitted C++ on "Valid Palindrome". <span className="font-bold">STATUS: Accepted.</span>
+                ) : (
+                  <div className="space-y-3 font-mono text-[10px] leading-relaxed">
+                    {recentSubmissionLogs.map((entry) => {
+                      const dateText = new Date(entry.submittedAt).toISOString().slice(11, 19) + ' UTC';
+                      const status = entry.status || 'Queued';
+                      const isAccepted = status === 'Accepted';
+                      const isWarning = status === 'TLE' || status === 'Wrong Answer' || status === 'Runtime Error';
+
+                      return (
+                        <div
+                          key={entry.id}
+                          className={`p-2.5 rounded bg-zinc-955 border border-zinc-800 ${
+                            isAccepted ? 'text-emerald-400' : isWarning ? 'text-amber-400' : 'text-zinc-300'
+                          }`}
+                        >
+                          <span className="text-zinc-550">[{dateText}]</span> - {entry.studentName} submitted {entry.language} on "{entry.problemTitle}". <span className="font-bold">STATUS: {status}.</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="p-2.5 rounded bg-zinc-955 border border-zinc-800 text-amber-400">
-                    <span className="text-zinc-550">[06:38:51 UTC]</span> - Vikram Singh submitted Java on "Two Sum". <span className="font-bold">STATUS: TLE.</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

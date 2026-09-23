@@ -257,6 +257,14 @@ export const adminApi = {
     totalStudents: number; totalProblems: number; totalQuizzes: number; totalSubmissions: number;
     databaseSizeBytes: number; largestTables: { table: string; bytes: number }[];
   }>('/admin/stats'),
+  recentSubmissions: () => request<Array<{
+    id: string;
+    studentName: string;
+    problemTitle: string;
+    language: string;
+    status: string;
+    submittedAt: string;
+  }>>('/admin/recent-submissions'),
 };
 
 // ---------------------------------------------------------------------------

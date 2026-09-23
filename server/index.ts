@@ -862,6 +862,26 @@ app.get('/api/admin/stats', requireAuth, requireAdmin, async (_req, res) => {
   res.json({ totalStudents, totalProblems, totalQuizzes, totalSubmissions, databaseSizeBytes, largestTables });
 });
 
+app.get('/api/admin/recent-submissions', requireAuth, requireAdmin, async (_req, res) => {
+  const rows = await db.prepare(`
+    SELECT s.id, s.status, s.submitted_at, s.language, p.title AS problem_title, u.full_name AS student_name
+    FROM submissions s
+    JOIN users u ON u.id = s.user_id
+    JOIN problems p ON p.id = s.problem_id
+    ORDER BY s.submitted_at DESC
+    LIMIT 8
+  `).all();
+
+  res.json(rows.map((row: any) => ({
+    id: row.id,
+    studentName: row.student_name,
+    problemTitle: row.problem_title,
+    language: row.language,
+    status: row.status,
+    submittedAt: row.submitted_at,
+  })));
+});
+
 // ---------------------------------------------------------------------------
 // Health check + static frontend serving (production)
 // ---------------------------------------------------------------------------
