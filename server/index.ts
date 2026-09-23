@@ -293,7 +293,7 @@ app.get('/api/problems', optionalAuth, async (req: AuthedRequest, res) => {
     SELECT p.*,
       (SELECT COUNT(*)::int FROM test_cases tc WHERE tc.problem_id = p.id) AS test_case_count,
       CASE
-        WHEN ? IS NULL THEN 'Unsolved'
+        WHEN CAST(? AS TEXT) IS NULL THEN 'Unsolved'
         WHEN EXISTS (
           SELECT 1 FROM submissions s
           WHERE s.user_id = ? AND s.problem_id = p.id AND s.status = 'Accepted'
