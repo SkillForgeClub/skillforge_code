@@ -504,13 +504,13 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
                 />
               ))}
               <span className="font-black text-sm ml-2 text-zinc-800 dark:text-zinc-200">
-                {activeStudent.starRating}-Star Developer
+                {activeStudent.starRating}-Star
               </span>
             </div>
 
             <div className="space-y-1">
               {activeStudent.starRating >= 5 ? (
-                <p className="text-[10px] text-emerald-500 font-bold italic pt-1">Maximum rating achieved — you're a 5-Star Developer!</p>
+                <p className="text-[10px] text-emerald-500 font-bold italic pt-1">Maximum rating achieved — you're a 5-Star!</p>
               ) : (
                 <>
                   {(() => {
