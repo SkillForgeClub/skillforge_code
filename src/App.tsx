@@ -20,7 +20,10 @@ import { useAuth } from './context/AuthContext';
 export default function App() {
   const [activeViewRoute, setActiveViewRoute] = useState<string>('home');
   const [activeContestId, setActiveContestId] = useState<string | null>(null);
-  const [isDarkModeActive, setIsDarkModeActive] = useState<boolean>(true);
+  const [isDarkModeActive, setIsDarkModeActive] = useState<boolean>(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark';
+  });
   const [toastNotificationsList, setToastNotificationsList] = useState<ToastMessage[]>([]);
   const { role, isLoading, logout } = useAuth();
 
@@ -28,8 +31,10 @@ export default function App() {
   useEffect(() => {
     if (isDarkModeActive) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   }, [isDarkModeActive]);
 
