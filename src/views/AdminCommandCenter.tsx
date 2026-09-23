@@ -83,6 +83,11 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
     totalStudents: 0, totalProblems: 0, totalQuizzes: 0, totalSubmissions: 0,
     databaseSizeBytes: 0, largestTables: [] as { table: string; bytes: number }[],
   });
+  const [certificateDraft, setCertificateDraft] = useState({
+    studentId: '',
+    title: '',
+    issueDate: new Date().toISOString().slice(0, 10),
+  });
 
   const reloadStudents = () => adminApi.students().then(setStudentsList).catch((err) => {
     addToast('Failed to Load Students', 'error', err instanceof ApiError ? err.message : 'Server error.');
@@ -194,6 +199,65 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
     { label: 'Total Quizzes', value: quizzesList.length, icon: Award, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/40 border-amber-200' },
     { label: 'Uptime Submissions', value: adminStats.totalSubmissions, icon: Activity, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/40 border-rose-200' },
   ];
+
+  const eligibleStudents = studentsList.filter((student) => student.starRating >= 3);
+
+  useEffect(() => {
+    if (!certificateDraft.studentId && eligibleStudents.length > 0) {
+      setCertificateDraft((prev) => ({ ...prev, studentId: eligibleStudents[0].id }));
+    }
+  }, [eligibleStudents, certificateDraft.studentId]);
+
+  const handleIssueCertificate = () => {
+    if (!certificateDraft.studentId) {
+      addToast('Validation Error', 'error', 'Select an eligible student to issue a certificate.');
+      return;
+    }
+
+    if (!certificateDraft.title.trim()) {
+      addToast('Validation Error', 'error', 'Certification title is required.');
+      return;
+    }
+
+    const student = studentsList.find((entry) => entry.id === certificateDraft.studentId);
+    if (!student) {
+      addToast('Student Not Found', 'error', 'Unable to find the selected student profile.');
+      return;
+    }
+
+    const title = certificateDraft.title.trim();
+    const certificateId = `cert-${Date.now()}`;
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'skillforge-certificate';
+    const newCredential = {
+      id: certificateId,
+      title,
+      issueDate: certificateDraft.issueDate,
+      credentialUrl: `/credentials/${student.rollNumber}-${slug}`,
+    };
+
+    setStudentsList((prev) => prev.map((entry) =>
+      entry.id === student.id
+        ? { ...entry, certificates: [newCredential, ...entry.certificates] }
+        : entry
+    ));
+
+    addToast('Certificate Issued Successfully', 'success', `Verified credential issued to ${student.fullName}.`);
+    setCertificateDraft((prev) => ({
+      ...prev,
+      title: '',
+      issueDate: new Date().toISOString().slice(0, 10),
+    }));
+  };
+
+  const handleRemoveCertificate = (studentId: string, certificateId: string, title: string) => {
+    setStudentsList((prev) => prev.map((entry) =>
+      entry.id === studentId
+        ? { ...entry, certificates: entry.certificates.filter((cert) => cert.id !== certificateId) }
+        : entry
+    ));
+
+    addToast('Certificate Removed', 'warning', `Removed credential: ${title}.`);
+  };
 
   // 1. Actions: Student Manager
   const handleEditStudentSave = async (e: React.FormEvent) => {
@@ -1639,31 +1703,114 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
         {activeAdminTab === 'certificates' && (
           <div className="space-y-6">
             <h3 className="font-extrabold text-sm uppercase tracking-wide text-zinc-400">Issue Academic Standing Certificates</h3>
-            <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 space-y-4">
-              <p className="text-xs text-zinc-500">Sign and approve college programming certificates for active student coders with standing star ratings of 3-Stars or above.</p>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
+            <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-850 space-y-5">
+              <p className="text-xs text-zinc-500">Approve standalone academic credentials for students with 3-Star standing or above.</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1 sm:col-span-1">
                   <label className="text-[10px] font-bold uppercase text-zinc-400">Choose Eligible Student</label>
-                  <select className="w-full px-3 py-1.5 rounded-lg border bg-zinc-55 text-xs text-zinc-800">
-                    {studentsList.map(s => (
-                      <option key={s.id} value={s.id}>{s.fullName} ({s.rollNumber}) - {s.starRating} Stars</option>
+                  <select
+                    value={certificateDraft.studentId}
+                    onChange={(e) => setCertificateDraft((prev) => ({ ...prev, studentId: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
+                  >
+                    <option value="">Select student</option>
+                    {eligibleStudents.map((student) => (
+                      <option key={student.id} value={student.id}>
+                        {student.fullName} ({student.rollNumber}) - {student.starRating} Stars
+                      </option>
                     ))}
                   </select>
                 </div>
-                
-                <div className="space-y-1">
+
+                <div className="space-y-1 sm:col-span-1">
                   <label className="text-[10px] font-bold uppercase text-zinc-400">Standing Title</label>
-                  <input type="text" placeholder="e.g. Master Coder" className="w-full px-3 py-1.5 rounded-lg border bg-zinc-55 text-xs" />
+                  <input
+                    type="text"
+                    value={certificateDraft.title}
+                    onChange={(e) => setCertificateDraft((prev) => ({ ...prev, title: e.target.value }))}
+                    placeholder="e.g. Master Coder"
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
+                  />
+                </div>
+
+                <div className="space-y-1 sm:col-span-1">
+                  <label className="text-[10px] font-bold uppercase text-zinc-400">Issue Date</label>
+                  <input
+                    type="date"
+                    value={certificateDraft.issueDate}
+                    onChange={(e) => setCertificateDraft((prev) => ({ ...prev, issueDate: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
+                  />
                 </div>
               </div>
 
-              <button
-                onClick={() => addToast('Certificate Issued Successfully', 'success', 'Verified credential issued to roster, sync completes shortly.')}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm border-none cursor-pointer"
-              >
-                Sign and Issue Credential
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={handleIssueCertificate}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm border-none cursor-pointer"
+                >
+                  Sign and Issue Credential
+                </button>
+                <span className="text-[10px] uppercase tracking-wide text-zinc-400">
+                  {eligibleStudents.length} eligible students
+                </span>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-4">
+              <h4 className="font-extrabold text-xs uppercase tracking-wider text-zinc-400">Issued Credentials</h4>
+
+              {eligibleStudents.length === 0 ? (
+                <div className="border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl p-6 text-center text-xs text-zinc-400">
+                  No students currently qualify for a certificate.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {eligibleStudents.map((student) => (
+                    <div key={student.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-3">
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <div>
+                          <p className="font-extrabold text-xs text-zinc-900 dark:text-white">{student.fullName}</p>
+                          <p className="text-[10px] text-zinc-500">{student.rollNumber} • {student.starRating} Stars</p>
+                        </div>
+                        <span className="rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[9px] font-bold px-2 py-1 uppercase">
+                          {student.certificates.length} issued
+                        </span>
+                      </div>
+
+                      {student.certificates.length === 0 ? (
+                        <p className="text-[10px] text-zinc-400">No credentials issued yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {student.certificates.map((cert) => (
+                            <div key={cert.id} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2">
+                              <div>
+                                <p className="font-bold text-[11px] text-zinc-900 dark:text-white">{cert.title}</p>
+                                <p className="text-[10px] text-zinc-500">Issued {new Date(cert.issueDate).toLocaleDateString()}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <a
+                                  href={cert.credentialUrl}
+                                  className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                                >
+                                  View
+                                </a>
+                                <button
+                                  onClick={() => handleRemoveCertificate(student.id, cert.id, cert.title)}
+                                  className="text-[10px] font-bold text-rose-600 hover:text-rose-500"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
