@@ -86,9 +86,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavClick('home')}>
-            <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-md shadow-indigo-500/20">
-              <span className="font-extrabold text-base tracking-wider">S</span>
-            </div>
+            <img
+              src="/logo.png"
+              alt="SkillForge Code logo"
+              className="h-10 w-10 object-contain drop-shadow-[0_0_12px_rgba(59,130,246,0.22)]"
+            />
             <div>
               <span className="font-extrabold text-base tracking-tight text-zinc-950 dark:text-white">
                 SkillForge
