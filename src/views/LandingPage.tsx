@@ -95,7 +95,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
             {/* Quick stats inline summary */}
             <div className="grid grid-cols-3 gap-4 pt-8 border-t border-zinc-200/60 dark:border-zinc-800/50 max-w-lg mx-auto lg:mx-0">
               <div>
-                <span className="block text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{stats.problems}+</span>
+                <span className="block text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">1107+</span>
                 <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Problems</span>
               </div>
               <div>
