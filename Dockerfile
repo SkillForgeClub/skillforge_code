@@ -29,8 +29,9 @@ RUN npm ci
 
 COPY . .
 
-# Skip frontend build — frontend is deployed separately on Vercel.
-# Set VITE_API_URL=https://skillforge-backend-mtss.onrender.com when building on Vercel.
+# Builds the frontend into dist/ too, so this single service can serve both API and frontend
+# if you choose the combined-deployment path instead of a separate Vercel frontend.
+RUN npm run build
 
 ENV NODE_ENV=production
 EXPOSE 8787
