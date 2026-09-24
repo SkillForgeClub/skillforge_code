@@ -16,6 +16,7 @@ import { QuizCenter } from './views/QuizCenter';
 import { GlobalLeaderboard } from './views/GlobalLeaderboard';
 import { ContestHub } from './views/ContestHub';
 import { ContestRoom } from './views/ContestRoom';
+import { TermsPage, SecurityPage, AboutPage, DepartmentPage } from './views/PolicyPages';
 import { useAuth } from './context/AuthContext';
 
 export default function App() {
@@ -106,6 +107,104 @@ export default function App() {
     );
   }
 
+  const pathname = location.pathname;
+
+  const renderRoutePage = () => {
+    if (pathname === '/terms') return <TermsPage />;
+    if (pathname === '/security') return <SecurityPage />;
+    if (pathname === '/about') return <AboutPage />;
+    if (pathname === '/department') return <DepartmentPage />;
+    if (pathname === '/student') {
+      if (role === 'Guest') {
+        return (
+          <div className="max-w-md mx-auto py-16 px-4">
+            <AuthPortal
+              initialMode="login"
+              onAuthSuccess={handleAuthenticationSuccess}
+              onNavigate={(view) => setActiveViewRoute(view)}
+              addToast={dispatchToastNotification}
+            />
+          </div>
+        );
+      }
+      return (
+        <StudentConsole
+          onNavigate={(view) => setActiveViewRoute(view)}
+          addToast={dispatchToastNotification}
+        />
+      );
+    }
+    if (pathname === '/admin') {
+      if (role !== 'Admin') {
+        return (
+          <div className="max-w-md mx-auto py-16 px-4">
+            <AuthPortal
+              initialMode="login"
+              onAuthSuccess={handleAuthenticationSuccess}
+              onNavigate={(view) => setActiveViewRoute(view)}
+              addToast={dispatchToastNotification}
+            />
+          </div>
+        );
+      }
+      return (
+        <AdminCommandCenter
+          onNavigate={(view) => setActiveViewRoute(view)}
+          addToast={dispatchToastNotification}
+        />
+      );
+    }
+    if (pathname === '/problems') {
+      if (role === 'Guest') {
+        return (
+          <div className="max-w-md mx-auto py-16 px-4">
+            <AuthPortal
+              initialMode="login"
+              onAuthSuccess={handleAuthenticationSuccess}
+              onNavigate={(view) => setActiveViewRoute(view)}
+              addToast={dispatchToastNotification}
+            />
+          </div>
+        );
+      }
+      return (
+        <ProblemArena
+          onNavigate={(view) => setActiveViewRoute(view)}
+          addToast={dispatchToastNotification}
+        />
+      );
+    }
+    if (pathname === '/quizzes') {
+      if (role === 'Guest') {
+        return (
+          <div className="max-w-md mx-auto py-16 px-4">
+            <AuthPortal
+              initialMode="login"
+              onAuthSuccess={handleAuthenticationSuccess}
+              onNavigate={(view) => setActiveViewRoute(view)}
+              addToast={dispatchToastNotification}
+            />
+          </div>
+        );
+      }
+      return (
+        <QuizCenter
+          onNavigate={(view) => setActiveViewRoute(view)}
+          addToast={dispatchToastNotification}
+        />
+      );
+    }
+    if (pathname === '/leaderboard') {
+      return (
+        <GlobalLeaderboard
+          onNavigate={(view) => setActiveViewRoute(view)}
+        />
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-[#0a0a0a] text-zinc-900 dark:text-[#e5e5e5] transition-colors selection:bg-indigo-500/30">
       
@@ -121,111 +220,114 @@ export default function App() {
 
       {/* 2. ROUTER SWITCHER */}
       <div className="animate-fade-in">
-        {activeViewRoute === 'home' && (
-          <LandingPage 
-            onNavigate={(view) => {
-              // Handle quick guest redirect constraints
-              if ((view === 'problems' || view === 'quizzes') && role === 'Guest') {
-                setActiveViewRoute('login');
-                dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to access compilation problems.');
-              } else {
-                setActiveViewRoute(view);
-              }
-            }} 
-            onSelectRole={() => setActiveViewRoute('login')}
-          />
-        )}
+        {renderRoutePage() || (
+          <>
+            {activeViewRoute === 'home' && (
+              <LandingPage 
+                onNavigate={(view) => {
+                  if ((view === 'problems' || view === 'quizzes') && role === 'Guest') {
+                    setActiveViewRoute('login');
+                    dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to access compilation problems.');
+                  } else {
+                    setActiveViewRoute(view);
+                  }
+                }} 
+                onSelectRole={() => setActiveViewRoute('login')}
+              />
+            )}
 
-        {activeViewRoute === 'login' && (
-          <div className="max-w-md mx-auto py-16 px-4">
-            <AuthPortal
-              initialMode="login"
-              onAuthSuccess={handleAuthenticationSuccess}
-              onNavigate={(view) => setActiveViewRoute(view)}
-              addToast={dispatchToastNotification}
-            />
-          </div>
-        )}
+            {activeViewRoute === 'login' && (
+              <div className="max-w-md mx-auto py-16 px-4">
+                <AuthPortal
+                  initialMode="login"
+                  onAuthSuccess={handleAuthenticationSuccess}
+                  onNavigate={(view) => setActiveViewRoute(view)}
+                  addToast={dispatchToastNotification}
+                />
+              </div>
+            )}
 
-        {activeViewRoute === 'register' && (
-          <div className="max-w-md mx-auto py-12 px-4">
-            <AuthPortal
-              initialMode="register"
-              onAuthSuccess={handleAuthenticationSuccess}
-              onNavigate={(view) => setActiveViewRoute(view)}
-              addToast={dispatchToastNotification}
-            />
-          </div>
-        )}
+            {activeViewRoute === 'register' && (
+              <div className="max-w-md mx-auto py-12 px-4">
+                <AuthPortal
+                  initialMode="register"
+                  onAuthSuccess={handleAuthenticationSuccess}
+                  onNavigate={(view) => setActiveViewRoute(view)}
+                  addToast={dispatchToastNotification}
+                />
+              </div>
+            )}
 
-        {activeViewRoute === 'forgot-password' && (
-          <div className="max-w-md mx-auto py-16 px-4">
-            <AuthPortal
-              initialMode="forgot"
-              onAuthSuccess={handleAuthenticationSuccess}
-              onNavigate={(view) => setActiveViewRoute(view)}
-              addToast={dispatchToastNotification}
-            />
-          </div>
-        )}
+            {activeViewRoute === 'forgot-password' && (
+              <div className="max-w-md mx-auto py-16 px-4">
+                <AuthPortal
+                  initialMode="forgot"
+                  onAuthSuccess={handleAuthenticationSuccess}
+                  onNavigate={(view) => setActiveViewRoute(view)}
+                  addToast={dispatchToastNotification}
+                />
+              </div>
+            )}
 
-        {activeViewRoute === 'student-dashboard' && role === 'Student' && (
-          <StudentConsole
-            onNavigate={(view) => setActiveViewRoute(view)}
-            addToast={dispatchToastNotification}
-          />
-        )}
+            {activeViewRoute === 'student-dashboard' && role === 'Student' && (
+              <StudentConsole
+                onNavigate={(view) => setActiveViewRoute(view)}
+                addToast={dispatchToastNotification}
+              />
+            )}
 
-        {activeViewRoute === 'admin-dashboard' && role === 'Admin' && (
-          <AdminCommandCenter
-            onNavigate={(view) => setActiveViewRoute(view)}
-            addToast={dispatchToastNotification}
-          />
-        )}
+            {activeViewRoute === 'admin-dashboard' && role === 'Admin' && (
+              <AdminCommandCenter
+                onNavigate={(view) => setActiveViewRoute(view)}
+                addToast={dispatchToastNotification}
+              />
+            )}
 
-        {activeViewRoute === 'problems' && role !== 'Guest' && (
-          <ProblemArena
-            onNavigate={(view) => setActiveViewRoute(view)}
-            addToast={dispatchToastNotification}
-          />
-        )}
+            {activeViewRoute === 'problems' && role !== 'Guest' && (
+              <ProblemArena
+                onNavigate={(view) => setActiveViewRoute(view)}
+                addToast={dispatchToastNotification}
+              />
+            )}
 
-        {activeViewRoute === 'quizzes' && role !== 'Guest' && (
-          <QuizCenter
-            onNavigate={(view) => setActiveViewRoute(view)}
-            addToast={dispatchToastNotification}
-          />
-        )}
+            {activeViewRoute === 'quizzes' && role !== 'Guest' && (
+              <QuizCenter
+                onNavigate={(view) => setActiveViewRoute(view)}
+                addToast={dispatchToastNotification}
+              />
+            )}
 
-        {activeViewRoute === 'leaderboard' && (
-          <GlobalLeaderboard
-            onNavigate={(view) => setActiveViewRoute(view)}
-          />
-        )}
+            {activeViewRoute === 'leaderboard' && (
+              <GlobalLeaderboard
+                onNavigate={(view) => setActiveViewRoute(view)}
+              />
+            )}
 
-        {activeViewRoute === 'contests' && (
-          <ContestHub
-            onNavigate={(view) => setActiveViewRoute(view)}
-            onEnterContest={(contestId) => {
-              if (role === 'Guest') {
-                setActiveViewRoute('login');
-                dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to view contest details.');
-                return;
-              }
-              setActiveContestId(contestId);
-              setActiveViewRoute('contest-room');
-            }}
-            addToast={dispatchToastNotification}
-          />
-        )}
+            {activeViewRoute === 'contests' && (
+              <ContestHub
+                onNavigate={(view) => setActiveViewRoute(view)}
+                onEnterContest={(contestId) => {
+                  if (role === 'Guest') {
+                    setActiveViewRoute('login');
+                    dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to view contest details.');
+                    return;
+                  }
+                  setActiveContestId(contestId);
+                  setActiveViewRoute('contest-room');
+                }}
+                addToast={dispatchToastNotification}
+              />
+            )}
 
-        {activeViewRoute === 'contest-room' && activeContestId && role !== 'Guest' && (
-          <ContestRoom
-            contestId={activeContestId}
-            onNavigate={(view) => setActiveViewRoute(view)}
-            onExit={() => setActiveViewRoute('contests')}
-            addToast={dispatchToastNotification}
-          />
+            {activeViewRoute === 'contest-room' && activeContestId && role !== 'Guest' && (
+              <ContestRoom
+                contestId={activeContestId}
+                onNavigate={(view) => setActiveViewRoute(view)}
+                onExit={() => setActiveViewRoute('contests')}
+                addToast={dispatchToastNotification}
+              />
+            )}
+          </>
         )}
       </div>
 
