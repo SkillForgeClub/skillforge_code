@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Toast, ToastMessage } from './components/Toast';
 import { LandingPage } from './views/LandingPage';
@@ -18,6 +19,7 @@ import { ContestRoom } from './views/ContestRoom';
 import { useAuth } from './context/AuthContext';
 
 export default function App() {
+  const location = useLocation();
   const [activeViewRoute, setActiveViewRoute] = useState<string>('home');
   const [activeContestId, setActiveContestId] = useState<string | null>(null);
   const [isDarkModeActive, setIsDarkModeActive] = useState<boolean>(() => {
@@ -26,6 +28,29 @@ export default function App() {
   });
   const [toastNotificationsList, setToastNotificationsList] = useState<ToastMessage[]>([]);
   const { role, isLoading, logout } = useAuth();
+
+  useEffect(() => {
+    const path = location.pathname.replace(/^\/+|\/+$/g, '') || 'home';
+    const viewMap: Record<string, string> = {
+      home: 'home',
+      student: 'student-dashboard',
+      admin: 'admin-dashboard',
+      problems: 'problems',
+      quizzes: 'quizzes',
+      leaderboard: 'leaderboard',
+      contests: 'contests',
+      'contest-room': 'contest-room',
+      department: 'home',
+      about: 'home',
+      terms: 'home',
+      security: 'home',
+      login: 'login',
+      register: 'register',
+      'forgot-password': 'forgot-password',
+    };
+
+    setActiveViewRoute(viewMap[path] || 'home');
+  }, [location.pathname]);
 
   // Toggle dark mode class on HTML document
   useEffect(() => {

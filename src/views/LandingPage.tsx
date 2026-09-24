@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Terminal, 
   Code2, 
@@ -459,41 +460,59 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
                 <span className="font-black text-sm text-white tracking-wider">SkillForge Code</span>
               </div>
               <p className="text-[11px] text-zinc-500 leading-relaxed">
-                Academic optimization workspace and timed code evaluations for modern computer science departments.
+                Academic coding platform for students
               </p>
             </div>
             
             <div className="space-y-3">
               <h5 className="font-bold text-white text-xs uppercase tracking-wider">Platform Links</h5>
               <ul className="space-y-1.5 text-[11px]">
-                <li><button onClick={() => onNavigate('problems')} className="hover:text-white transition-colors bg-transparent border-none p-0 cursor-pointer">Problem Arena</button></li>
-                <li><button onClick={() => onNavigate('quizzes')} className="hover:text-white transition-colors bg-transparent border-none p-0 cursor-pointer">Quiz Modules</button></li>
-                <li><button onClick={() => onNavigate('leaderboard')} className="hover:text-white transition-colors bg-transparent border-none p-0 cursor-pointer">Rank Leaderboard</button></li>
+                <li><Link to="/problems" onClick={() => onNavigate('problems')} className="hover:text-white transition-colors text-zinc-400 hover:text-white">Problem Arena</Link></li>
+                <li><Link to="/quizzes" onClick={() => onNavigate('quizzes')} className="hover:text-white transition-colors text-zinc-400 hover:text-white">Quiz Modules</Link></li>
+                <li><Link to="/leaderboard" onClick={() => onNavigate('leaderboard')} className="hover:text-white transition-colors text-zinc-400 hover:text-white">Rank Leaderboard</Link></li>
               </ul>
             </div>
 
             <div className="space-y-3">
               <h5 className="font-bold text-white text-xs uppercase tracking-wider">Testing Controls</h5>
               <ul className="space-y-1.5 text-[11px]">
-                <li><button onClick={() => { if (onSelectRole) onSelectRole('Student'); onNavigate('student-dashboard'); }} className="hover:text-white transition-colors bg-transparent border-none p-0 cursor-pointer">Student View</button></li>
-                <li><button onClick={() => { if (onSelectRole) onSelectRole('Admin'); onNavigate('admin-dashboard'); }} className="hover:text-white transition-colors bg-transparent border-none p-0 cursor-pointer">Admin View</button></li>
+                <li><Link to="/student" onClick={() => { if (onSelectRole) onSelectRole('Student'); onNavigate('student-dashboard'); }} className="hover:text-white transition-colors text-zinc-400 hover:text-white">Student View</Link></li>
+                <li><Link to="/admin" onClick={() => { if (onSelectRole) onSelectRole('Admin'); onNavigate('admin-dashboard'); }} className="hover:text-white transition-colors text-zinc-400 hover:text-white">Admin View</Link></li>
               </ul>
             </div>
 
             <div className="space-y-3">
-              <h5 className="font-bold text-white text-xs uppercase tracking-wider">Support info</h5>
-              <p className="text-[11px] text-zinc-500">
-                Department of Computer Science & Engineering<br />
-                SkillForge Academic Portal v1.2.0
-              </p>
+              <h5 className="font-bold text-white text-xs uppercase tracking-wider">Support Info</h5>
+              <ul className="space-y-1.5 text-[11px]">
+                <li><Link to="/department" onClick={() => onNavigate('home')} className="hover:text-white transition-colors text-zinc-400 hover:text-white">Department of Data Science</Link></li>
+                <li><Link to="/about" onClick={() => onNavigate('home')} className="hover:text-white transition-colors text-zinc-400 hover:text-white">SkillForge Academic Portal</Link></li>
+              </ul>
             </div>
           </div>
 
-          <div className="pt-8 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between text-[11px] text-zinc-500">
-            <p>© 2026 SkillForge Code. Developed for College Coding Platform.</p>
-            <div className="flex gap-4 mt-2 sm:mt-0">
-              <span className="hover:text-zinc-400 cursor-pointer">Terms of Service</span>
-              <span className="hover:text-zinc-400 cursor-pointer">Security Sandbox Rules</span>
+          <div className="pt-8 border-t border-zinc-800">
+            <div className="text-center text-[11px] text-zinc-500 mb-4">
+              <span>Made with </span>
+              <span aria-label="love">💙</span>
+              <span> by </span>
+              <Link to="/about" onClick={() => onNavigate('home')} className="text-indigo-400 hover:text-indigo-300 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-zinc-900 transition-colors">SkillForge Team</Link>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-zinc-500">
+              <p>© 2026 SkillForge Code. Developed for College Coding Platform.</p>
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                <Link to="/terms" onClick={() => onNavigate('home')} className="hover:text-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-zinc-900 rounded-sm">Terms of Service</Link>
+                <Link to="/security" onClick={() => onNavigate('home')} className="hover:text-zinc-300 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-zinc-900 rounded-sm">Security Sandbox Rules</Link>
+                <a
+                  href="https://www.skillforge.net.in/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-500/50 bg-indigo-600/10 text-indigo-200 font-semibold shadow-sm transition-all duration-200 hover:bg-indigo-500 hover:text-white hover:border-indigo-400 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+                  aria-label="Visit SkillForge website"
+                >
+                  Visit Us <span aria-hidden="true">↗</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
