@@ -429,8 +429,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
 
                     <div className="flex items-center gap-6 text-right">
                       <div>
-                        <span className="block font-bold text-xs text-zinc-800 dark:text-zinc-200">{entry.solvedCount} Solved</span>
-                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase font-bold tracking-wider">{entry.points} Points</span>
+                        <span className="block font-bold text-xs text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">{entry.points} Points</span>
                       </div>
                       <div className="flex items-center gap-0.5">
                         {Array.from({ length: entry.starRating }).map((_, i) => (
