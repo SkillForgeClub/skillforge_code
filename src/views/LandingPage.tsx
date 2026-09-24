@@ -119,18 +119,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
                   <span className="h-3 w-3 rounded-full bg-amber-500 block" />
                   <span className="h-3 w-3 rounded-full bg-emerald-500 block" />
                 </div>
-                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">palindrome_test.py</span>
+                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">SKILLFORGE.exe</span>
               </div>
               <pre className="text-zinc-300 space-y-1 select-none overflow-x-auto text-[11px]">
                 <code>
-                  {`# SkillForge Sandbox Compiler\n`}
-                  <span className="text-indigo-400">def</span> <span className="text-emerald-400">is_palindrome</span>(s: <span className="text-amber-400">str</span>) -&gt; <span className="text-amber-400">bool</span>:<br />
-                  {`    cleaned = "".join(c.lower() for c in s if c.isalnum())\n`}
-                  {`    return cleaned == cleaned[::-1]\n\n`}
-                  <span className="text-zinc-550"># Compiling test cases...</span><br />
-                  <span className="text-emerald-400">✔</span> Case 1: "A man, a plan" -&gt; Passed<br />
-                  <span className="text-emerald-400">✔</span> Case 2: "race a car" -&gt; Passed<br />
-                  <span className="text-indigo-400">Stdout:</span> Solution Accepted! [42ms]
+                  {`BOOTING DATA SCIENCE...\n\n`}
+                  <span className="text-emerald-400">✓</span> CODE<br />
+                  <span className="text-emerald-400">✓</span> DATA<br />
+                  <span className="text-emerald-400">✓</span> AI<br />
+                  <span className="text-emerald-400">✓</span> INNOVATION<br />
+                  <br />
+                  {`student.learn()\n`}
+                  {`student.build()\n`}
+                  {`student.innovate()\n\n`}
+                  <span className="text-indigo-400">DATA → AI → IMPACT</span><br />
+                  <br />
+                  <span className="text-emerald-400">&gt;&gt;&gt; SYSTEM STATUS: UNLIMITED!!</span>
                 </code>
               </pre>
             </div>

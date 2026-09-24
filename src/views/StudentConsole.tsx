@@ -15,7 +15,8 @@ import {
   ExternalLink,
   Star,
   Lock,
-  Unlock
+  Unlock,
+  Download
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
@@ -131,6 +132,58 @@ const CORE_ACHIEVEMENT_BADGES: CoreAchievementBadge[] = [
     }
   }
 ];
+
+function downloadAchievementBadge(badge: CoreAchievementBadge, student: Student) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1600;
+  canvas.height = 900;
+  const context = canvas.getContext('2d');
+  if (!context) return;
+
+  const background = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+  background.addColorStop(0, '#111827');
+  background.addColorStop(1, '#312e81');
+  context.fillStyle = background;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  context.fillStyle = 'rgba(255, 255, 255, 0.08)';
+  context.beginPath();
+  context.arc(1330, 130, 330, 0, Math.PI * 2);
+  context.fill();
+  context.beginPath();
+  context.arc(180, 820, 260, 0, Math.PI * 2);
+  context.fill();
+
+  context.textAlign = 'center';
+  context.font = '110px sans-serif';
+  context.fillText(badge.icon, canvas.width / 2, 250);
+
+  context.fillStyle = '#ffffff';
+  context.font = '700 54px sans-serif';
+  context.fillText(badge.title, canvas.width / 2, 370);
+
+  context.fillStyle = '#c7d2fe';
+  context.font = '500 32px sans-serif';
+  context.fillText(`Awarded to ${student.fullName}`, canvas.width / 2, 450);
+
+  context.fillStyle = '#e0e7ff';
+  context.font = '700 30px sans-serif';
+  context.fillText(badge.criteria.toUpperCase(), canvas.width / 2, 535);
+
+  context.fillStyle = '#a5b4fc';
+  context.font = '500 24px sans-serif';
+  context.fillText('SkillForge Code | Verified Achievement', canvas.width / 2, 770);
+  context.fillStyle = '#ffffff';
+  context.font = '700 22px sans-serif';
+  context.fillText(new Date().toLocaleDateString(), canvas.width / 2, 820);
+
+  const link = document.createElement('a');
+  const safeStudentName = student.fullName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'student';
+  const safeBadgeName = badge.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'badge';
+  link.download = `${safeStudentName}-${safeBadgeName}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
 
 export const StudentConsole: React.FC<StudentConsoleProps> = ({
   onNavigate,
@@ -403,6 +456,16 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
                       <span className="text-[9px] font-semibold text-zinc-450 dark:text-zinc-500 block uppercase tracking-wider">
                         {badge.criteria}
                       </span>
+                      {isUnlocked && (
+                        <button
+                          type="button"
+                          onClick={() => downloadAchievementBadge(badge, activeStudent)}
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-[10px] font-bold text-white transition-colors hover:bg-indigo-700"
+                        >
+                          <Download className="h-3 w-3" />
+                          Download Badge
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 );
