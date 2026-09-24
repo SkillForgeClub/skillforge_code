@@ -112,8 +112,21 @@ export default function App() {
   const renderRoutePage = () => {
     if (pathname === '/terms') return <TermsPage />;
     if (pathname === '/security') return <SecurityPage />;
-    if (pathname === '/about') return <AboutPage />;
-    if (pathname === '/department') return <DepartmentPage />;
+    if (pathname === '/about' || pathname === '/department') {
+      return (
+        <LandingPage
+          onNavigate={(view) => {
+            if ((view === 'problems' || view === 'quizzes') && role === 'Guest') {
+              setActiveViewRoute('login');
+              dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to access compilation problems.');
+            } else {
+              setActiveViewRoute(view);
+            }
+          }}
+          onSelectRole={() => setActiveViewRoute('login')}
+        />
+      );
+    }
     if (pathname === '/student') {
       if (role === 'Guest') {
         return (
