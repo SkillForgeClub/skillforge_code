@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS users (
   level INTEGER NOT NULL DEFAULT 1,
   streak INTEGER NOT NULL DEFAULT 0,
   last_solved_date TEXT,
+  last_login_date TEXT,
   easy_solved INTEGER NOT NULL DEFAULT 0,
   medium_solved INTEGER NOT NULL DEFAULT 0,
   hard_solved INTEGER NOT NULL DEFAULT 0,
@@ -215,4 +216,5 @@ CREATE INDEX IF NOT EXISTS idx_contest_reg_user ON contest_registrations(user_id
 /** Creates every table/index if missing. Safe to run on every boot. */
 export async function initSchema(): Promise<void> {
   await db.exec(SCHEMA_SQL);
+  await db.exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date TEXT`);
 }
