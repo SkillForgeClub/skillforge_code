@@ -322,6 +322,7 @@ app.get('/api/problems', optionalAuth, async (req: AuthedRequest, res) => {
         ELSE 'Unsolved'
       END AS problem_status
     FROM problems p
+    WHERE p.contest_only = 0
     ORDER BY p.created_at ASC
   `).all(req.user?.role === 'student' ? req.user.id : null, req.user?.role === 'student' ? req.user.id : null, req.user?.role === 'student' ? req.user.id : null);
   const studentId = req.user?.role === 'student' ? req.user.id : undefined;

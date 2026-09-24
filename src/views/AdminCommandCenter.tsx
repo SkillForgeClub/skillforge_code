@@ -73,6 +73,8 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
   const [quizzesList, setQuizzesList] = useState<Quiz[]>([]);
   const [contestsList, setContestsList] = useState<Contest[]>([]);
   const [isContestFormActive, setIsContestFormActive] = useState(false);
+  const [creatingContestOnlyProblem, setCreatingContestOnlyProblem] = useState(false);
+  const [contestOnlyProblemTitles, setContestOnlyProblemTitles] = useState<Record<string, string>>({});
   const [extendingContestId, setExtendingContestId] = useState<string | null>(null);
   const [contestForm, setContestForm] = useState<{
     id?: string; title: string; description: string; startTime: string; endTime: string;
@@ -394,7 +396,23 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
     };
 
     try {
-      if (problemForm.id) {
+      if (creatingContestOnlyProblem) {
+        const newProblem = await contestsApi.createProblem(payload);
+        setContestOnlyProblemTitles(prev => ({ ...prev, [newProblem.id]: newProblem.title }));
+        setContestForm(prev => ({
+          ...prev,
+          problems: [...prev.problems, {
+            problemId: newProblem.id,
+            label: String.fromCharCode(65 + prev.problems.length),
+            points: 100,
+          }],
+        }));
+        setCreatingContestOnlyProblem(false);
+        setCreatingProblem(false);
+        resetProblemForm();
+        setActiveAdminTab('contests');
+        addToast('Contest Problem Created', 'success', `"${newProblem.title}" is available only in this contest.`);
+      } else if (problemForm.id) {
         const updated = await problemsApi.update(problemForm.id, payload);
         setProblemsList(prev => prev.map(p => p.id === updated.id ? updated : p));
         addToast('Problem Updated', 'success', `"${updated.title}" has been saved.`);
@@ -403,8 +421,10 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
         setProblemsList(prev => [newProblem, ...prev]);
         addToast('New Problem Created', 'success', `"${newProblem.title}" has been successfully appended to the Problem Bank.`);
       }
-      setCreatingProblem(false);
-      resetProblemForm();
+      if (!creatingContestOnlyProblem) {
+        setCreatingProblem(false);
+        resetProblemForm();
+      }
     } catch (err) {
       addToast(problemForm.id ? 'Update Failed' : 'Creation Failed', 'error', err instanceof ApiError ? err.message : 'Could not save problem.');
     }
@@ -1650,7 +1670,21 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-[11px] font-bold text-zinc-500">Problems (in order)</label>
-                    <button type="button" onClick={handleAddContestProblemRow} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">+ Add Problem</button>
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={handleAddContestProblemRow} className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">+ Add Problem</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreatingContestOnlyProblem(true);
+                          setCreatingProblem(true);
+                          resetProblemForm();
+                          setActiveAdminTab('problems');
+                        }}
+                        className="text-[11px] font-bold text-amber-600 dark:text-amber-400"
+                      >
+                        + Create contest-only problem
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     {contestForm.problems.map((p, idx) => (
@@ -1662,6 +1696,9 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
                           className="flex-1 px-2 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs"
                         >
                           {problemsList.map(prob => <option key={prob.id} value={prob.id}>{prob.title}</option>)}
+                          {contestOnlyProblemTitles[p.problemId] && !problemsList.some(prob => prob.id === p.problemId) && (
+                            <option value={p.problemId}>{contestOnlyProblemTitles[p.problemId]} (contest-only)</option>
+                          )}
                         </select>
                         <input
                           type="number"

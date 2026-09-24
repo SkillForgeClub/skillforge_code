@@ -299,6 +299,7 @@ export function connectSSE(
 
 export const contestsApi = {
   list: () => request<Contest[]>('/contests'),
+  createProblem: (data: any) => request<CodingProblem>('/contests/problem', { method: 'POST', body: JSON.stringify(data) }),
   get: (id: string) => request<Contest>(`/contests/${id}`),
   register: (id: string) => request<{ success: boolean; isRegistered: boolean }>(`/contests/${id}/register`, { method: 'POST' }),
   leaderboard: (id: string) => request<ContestStandingEntry[]>(`/contests/${id}/leaderboard`),

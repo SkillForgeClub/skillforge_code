@@ -20,6 +20,47 @@ function nowIso() {
 
 const PENALTY_MINUTES_PER_WRONG_ATTEMPT = 20;
 
+contestsRouter.post('/problem', requireAuth, requireAdmin, async (req, res) => {
+  const b = req.body || {};
+  if (!b.title || !b.statement) return res.status(400).json({ error: 'Title and statement are required.' });
+  if (!Array.isArray(b.testCases) || b.testCases.filter((tc: any) => tc.isPublic).length === 0) {
+    return res.status(400).json({ error: 'At least one public test case is required.' });
+  }
+
+  const id = newId('contest-prob');
+  await db.prepare(`
+    INSERT INTO problems (id, title, difficulty, category, statement, input_format, output_format, constraints, examples, starter_templates, contest_only, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+  `).run(
+    id, b.title, b.difficulty || 'Easy', b.category || 'Contest', b.statement,
+    b.inputFormat || '', b.outputFormat || '', b.constraints || '',
+    JSON.stringify(b.examples || []), JSON.stringify(b.starterTemplates || {}), nowIso()
+  );
+
+  const insertTC = db.prepare(`INSERT INTO test_cases (id, problem_id, input, expected_output, is_public, ord) VALUES (?, ?, ?, ?, ?, ?)`);
+  for (const [idx, tc] of b.testCases.entries()) {
+    await insertTC.run(newId('tc'), id, tc.input || '', tc.expectedOutput || '', tc.isPublic ? 1 : 0, idx);
+  }
+
+  const row = await db.prepare(`SELECT * FROM problems WHERE id=?`).get(id);
+  const testCases = await db.prepare(`SELECT * FROM test_cases WHERE problem_id=? ORDER BY ord ASC`).all(id);
+  res.status(201).json({
+    id: row.id,
+    title: row.title,
+    difficulty: row.difficulty,
+    category: row.category,
+    statement: row.statement,
+    inputFormat: row.input_format,
+    outputFormat: row.output_format,
+    constraints: row.constraints,
+    examples: JSON.parse(row.examples || '[]'),
+    starterTemplates: JSON.parse(row.starter_templates || '{}'),
+    solvedCount: row.solved_count,
+    acceptanceRate: 0,
+    testCases: testCases.map((tc: any) => ({ id: tc.id, input: tc.input, expectedOutput: tc.expected_output, isPublic: !!tc.is_public })),
+  });
+});
+
 function contestStatus(row: any): 'Upcoming' | 'Live' | 'Ended' {
   const now = Date.now();
   const start = new Date(row.start_time).getTime();

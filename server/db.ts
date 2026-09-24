@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS problems (
   attempt_count INTEGER NOT NULL DEFAULT 0,
   time_limit_ms INTEGER,
   memory_limit_mb INTEGER,
+  contest_only INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -217,4 +218,5 @@ CREATE INDEX IF NOT EXISTS idx_contest_reg_user ON contest_registrations(user_id
 export async function initSchema(): Promise<void> {
   await db.exec(SCHEMA_SQL);
   await db.exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date TEXT`);
+  await db.exec(`ALTER TABLE problems ADD COLUMN IF NOT EXISTS contest_only INTEGER NOT NULL DEFAULT 0`);
 }
