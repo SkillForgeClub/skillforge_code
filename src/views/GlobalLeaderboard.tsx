@@ -84,7 +84,6 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
 
             <div className="space-y-1">
               <span className="block font-black text-sm text-indigo-600 dark:text-indigo-400">{secondPlaceWinner.points} Pts</span>
-              <span className="text-[9px] uppercase font-bold text-zinc-450 block">{secondPlaceWinner.solvedCount} Problems Solved</span>
             </div>
           </div>
         )}
@@ -109,7 +108,6 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
 
             <div className="space-y-1 relative z-10">
               <span className="block font-black text-lg text-amber-300">{firstPlaceWinner.points} Pts</span>
-              <span className="text-[9px] uppercase font-bold text-indigo-200 block">{firstPlaceWinner.solvedCount} Problems Solved</span>
               <div className="flex justify-center gap-0.5 pt-1">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star key={i} className="h-3.5 w-3.5 fill-current text-amber-400" />
@@ -137,7 +135,6 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
 
             <div className="space-y-1">
               <span className="block font-black text-sm text-indigo-600 dark:text-indigo-400">{thirdPlaceWinner.points} Pts</span>
-              <span className="text-[9px] uppercase font-bold text-zinc-450 block">{thirdPlaceWinner.solvedCount} Problems Solved</span>
             </div>
           </div>
         )}
