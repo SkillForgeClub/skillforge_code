@@ -221,7 +221,7 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
     }
   }, [eligibleStudents, certificateDraft.studentId]);
 
-  const handleIssueCertificate = () => {
+  const handleIssueCertificate = async () => {
     if (!certificateDraft.studentId) {
       addToast('Validation Error', 'error', 'Select an eligible student to issue a certificate.');
       return;
@@ -238,38 +238,27 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
       return;
     }
 
-    const title = certificateDraft.title.trim();
-    const certificateId = `cert-${Date.now()}`;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'skillforge-certificate';
-    const newCredential = {
-      id: certificateId,
-      title,
-      issueDate: certificateDraft.issueDate,
-      credentialUrl: `/credentials/${student.rollNumber}-${slug}`,
-    };
-
-    setStudentsList((prev) => prev.map((entry) =>
-      entry.id === student.id
-        ? { ...entry, certificates: [newCredential, ...entry.certificates] }
-        : entry
-    ));
-
-    addToast('Certificate Issued Successfully', 'success', `Verified credential issued to ${student.fullName}.`);
-    setCertificateDraft((prev) => ({
-      ...prev,
-      title: '',
-      issueDate: new Date().toISOString().slice(0, 10),
-    }));
+    try {
+      const updatedStudent = await adminApi.issueCertificate(student.id, {
+        title: certificateDraft.title.trim(),
+        issueDate: certificateDraft.issueDate,
+      });
+      setStudentsList((prev) => prev.map((entry) => entry.id === updatedStudent.id ? updatedStudent : entry));
+      addToast('Certificate Issued Successfully', 'success', `Verified credential issued to ${student.fullName}.`);
+      setCertificateDraft((prev) => ({ ...prev, title: '', issueDate: new Date().toISOString().slice(0, 10) }));
+    } catch (err) {
+      addToast('Certificate Failed', 'error', err instanceof ApiError ? err.message : 'Could not issue certificate.');
+    }
   };
 
-  const handleRemoveCertificate = (studentId: string, certificateId: string, title: string) => {
-    setStudentsList((prev) => prev.map((entry) =>
-      entry.id === studentId
-        ? { ...entry, certificates: entry.certificates.filter((cert) => cert.id !== certificateId) }
-        : entry
-    ));
-
-    addToast('Certificate Removed', 'warning', `Removed credential: ${title}.`);
+  const handleRemoveCertificate = async (studentId: string, certificateId: string, title: string) => {
+    try {
+      const updatedStudent = await adminApi.removeCertificate(studentId, certificateId);
+      setStudentsList((prev) => prev.map((entry) => entry.id === updatedStudent.id ? updatedStudent : entry));
+      addToast('Certificate Removed', 'warning', `Removed credential: ${title}.`);
+    } catch (err) {
+      addToast('Removal Failed', 'error', err instanceof ApiError ? err.message : 'Could not remove certificate.');
+    }
   };
 
   // 1. Actions: Student Manager

@@ -864,6 +864,38 @@ app.put('/api/admin/students/:id', requireAuth, requireAdmin, async (req, res) =
   res.json(toStudent(row));
 });
 
+app.post('/api/admin/students/:id/certificates', requireAuth, requireAdmin, async (req, res) => {
+  const existing = await db.prepare(`SELECT * FROM users WHERE id=? AND role='student'`).get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Student not found.' });
+  if (existing.star_rating < 3) return res.status(400).json({ error: 'Only students with 3-Star standing or above are eligible.' });
+
+  const title = String(req.body?.title || '').trim();
+  const issueDate = String(req.body?.issueDate || new Date().toISOString().slice(0, 10));
+  if (!title) return res.status(400).json({ error: 'Certification title is required.' });
+
+  const certificate = {
+    id: newId('cert'),
+    title,
+    issueDate,
+    credentialUrl: `/credentials/${existing.roll_number}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'skillforge-certificate'}`,
+  };
+  const certificates = [certificate, ...JSON.parse(existing.certificates || '[]')];
+  await db.prepare(`UPDATE users SET certificates=? WHERE id=?`).run(JSON.stringify(certificates), req.params.id);
+  const row = await db.prepare(`SELECT * FROM users WHERE id=?`).get(req.params.id);
+  res.status(201).json(toStudent(row));
+});
+
+app.delete('/api/admin/students/:id/certificates/:certificateId', requireAuth, requireAdmin, async (req, res) => {
+  const existing = await db.prepare(`SELECT * FROM users WHERE id=? AND role='student'`).get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Student not found.' });
+  const current = JSON.parse(existing.certificates || '[]');
+  const certificates = current.filter((certificate: any) => certificate.id !== req.params.certificateId);
+  if (certificates.length === current.length) return res.status(404).json({ error: 'Certificate not found.' });
+  await db.prepare(`UPDATE users SET certificates=? WHERE id=?`).run(JSON.stringify(certificates), req.params.id);
+  const row = await db.prepare(`SELECT * FROM users WHERE id=?`).get(req.params.id);
+  res.json(toStudent(row));
+});
+
 app.delete('/api/admin/students/:id', requireAuth, requireAdmin, async (req, res) => {
   const result = await db.prepare(`DELETE FROM users WHERE id=? AND role='student'`).run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Student not found.' });

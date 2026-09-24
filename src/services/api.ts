@@ -252,6 +252,10 @@ export const adminApi = {
   students: () => request<Student[]>('/admin/students'),
   updateStudent: (id: string, data: Partial<Student>) =>
     request<Student>(`/admin/students/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  issueCertificate: (id: string, data: { title: string; issueDate: string }) =>
+    request<Student>(`/admin/students/${id}/certificates`, { method: 'POST', body: JSON.stringify(data) }),
+  removeCertificate: (studentId: string, certificateId: string) =>
+    request<Student>(`/admin/students/${studentId}/certificates/${certificateId}`, { method: 'DELETE' }),
   deleteStudent: (id: string) => request<{ success: boolean }>(`/admin/students/${id}`, { method: 'DELETE' }),
   stats: () => request<{
     totalStudents: number; totalProblems: number; totalQuizzes: number; totalSubmissions: number;
