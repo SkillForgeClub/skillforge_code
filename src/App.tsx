@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Toast, ToastMessage } from './components/Toast';
 import { LandingPage } from './views/LandingPage';
@@ -21,6 +21,7 @@ import { useAuth } from './context/AuthContext';
 
 export default function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeViewRoute, setActiveViewRoute] = useState<string>('home');
   const [activeContestId, setActiveContestId] = useState<string | null>(null);
   const [isDarkModeActive, setIsDarkModeActive] = useState<boolean>(() => {
@@ -81,20 +82,39 @@ export default function App() {
   };
 
   // The navbar's role control now doubles as the real session logout action.
+  const handleNavigate = (view: string) => {
+    const routeMap: Record<string, string> = {
+      home: '/',
+      login: '/login',
+      register: '/register',
+      'forgot-password': '/forgot-password',
+      'student-dashboard': '/student',
+      'admin-dashboard': '/admin',
+      problems: '/problems',
+      quizzes: '/quizzes',
+      leaderboard: '/leaderboard',
+      contests: '/contests',
+      'contest-room': '/contest-room',
+    };
+
+    setActiveViewRoute(view);
+    navigate(routeMap[view] || '/');
+  };
+
   const handleSessionRoleChange = (nextRole: 'Guest' | 'Student' | 'Admin') => {
     if (nextRole === 'Guest') {
       logout();
-      setActiveViewRoute('home');
+      handleNavigate('home');
       dispatchToastNotification('Logged Out', 'info', 'Your session has ended.');
     }
   };
 
   const handleAuthenticationSuccess = (authedRole: 'Student' | 'Admin', name: string) => {
     if (authedRole === 'Student') {
-      setActiveViewRoute('student-dashboard');
+      handleNavigate('student-dashboard');
       dispatchToastNotification('Authenticated Successfully', 'success', `Welcome back to your workspace, ${name}!`);
     } else {
-      setActiveViewRoute('admin-dashboard');
+      handleNavigate('admin-dashboard');
       dispatchToastNotification('Administrator Verified', 'success', `Authorized credentials as evaluation coordinator.`);
     }
   };
@@ -117,13 +137,13 @@ export default function App() {
         <LandingPage
           onNavigate={(view) => {
             if ((view === 'problems' || view === 'quizzes') && role === 'Guest') {
-              setActiveViewRoute('login');
+              handleNavigate('login');
               dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to access compilation problems.');
             } else {
-              setActiveViewRoute(view);
+              handleNavigate(view);
             }
           }}
-          onSelectRole={() => setActiveViewRoute('login')}
+          onSelectRole={() => handleNavigate('login')}
         />
       );
     }
@@ -134,7 +154,7 @@ export default function App() {
             <AuthPortal
               initialMode="login"
               onAuthSuccess={handleAuthenticationSuccess}
-              onNavigate={(view) => setActiveViewRoute(view)}
+              onNavigate={handleNavigate}
               addToast={dispatchToastNotification}
             />
           </div>
@@ -142,7 +162,7 @@ export default function App() {
       }
       return (
         <StudentConsole
-          onNavigate={(view) => setActiveViewRoute(view)}
+          onNavigate={handleNavigate}
           addToast={dispatchToastNotification}
         />
       );
@@ -154,7 +174,7 @@ export default function App() {
             <AuthPortal
               initialMode="login"
               onAuthSuccess={handleAuthenticationSuccess}
-              onNavigate={(view) => setActiveViewRoute(view)}
+              onNavigate={handleNavigate}
               addToast={dispatchToastNotification}
             />
           </div>
@@ -162,7 +182,7 @@ export default function App() {
       }
       return (
         <AdminCommandCenter
-          onNavigate={(view) => setActiveViewRoute(view)}
+          onNavigate={handleNavigate}
           addToast={dispatchToastNotification}
         />
       );
@@ -174,7 +194,7 @@ export default function App() {
             <AuthPortal
               initialMode="login"
               onAuthSuccess={handleAuthenticationSuccess}
-              onNavigate={(view) => setActiveViewRoute(view)}
+              onNavigate={handleNavigate}
               addToast={dispatchToastNotification}
             />
           </div>
@@ -182,7 +202,7 @@ export default function App() {
       }
       return (
         <ProblemArena
-          onNavigate={(view) => setActiveViewRoute(view)}
+          onNavigate={handleNavigate}
           addToast={dispatchToastNotification}
         />
       );
@@ -194,7 +214,7 @@ export default function App() {
             <AuthPortal
               initialMode="login"
               onAuthSuccess={handleAuthenticationSuccess}
-              onNavigate={(view) => setActiveViewRoute(view)}
+              onNavigate={handleNavigate}
               addToast={dispatchToastNotification}
             />
           </div>
@@ -202,7 +222,7 @@ export default function App() {
       }
       return (
         <QuizCenter
-          onNavigate={(view) => setActiveViewRoute(view)}
+          onNavigate={handleNavigate}
           addToast={dispatchToastNotification}
         />
       );
@@ -210,7 +230,7 @@ export default function App() {
     if (pathname === '/leaderboard') {
       return (
         <GlobalLeaderboard
-          onNavigate={(view) => setActiveViewRoute(view)}
+          onNavigate={handleNavigate}
         />
       );
     }
@@ -226,7 +246,7 @@ export default function App() {
         currentRole={role}
         onRoleChange={handleSessionRoleChange}
         currentView={activeViewRoute}
-        onNavigate={(view) => setActiveViewRoute(view)}
+        onNavigate={handleNavigate}
         isDarkMode={isDarkModeActive}
         onToggleDarkMode={() => setIsDarkModeActive(!isDarkModeActive)}
       />
@@ -239,13 +259,13 @@ export default function App() {
               <LandingPage 
                 onNavigate={(view) => {
                   if ((view === 'problems' || view === 'quizzes') && role === 'Guest') {
-                    setActiveViewRoute('login');
+                    handleNavigate('login');
                     dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to access compilation problems.');
                   } else {
-                    setActiveViewRoute(view);
+                    handleNavigate(view);
                   }
                 }} 
-                onSelectRole={() => setActiveViewRoute('login')}
+                onSelectRole={() => handleNavigate('login')}
               />
             )}
 
@@ -254,7 +274,7 @@ export default function App() {
                 <AuthPortal
                   initialMode="login"
                   onAuthSuccess={handleAuthenticationSuccess}
-                  onNavigate={(view) => setActiveViewRoute(view)}
+                  onNavigate={handleNavigate}
                   addToast={dispatchToastNotification}
                 />
               </div>
@@ -265,7 +285,7 @@ export default function App() {
                 <AuthPortal
                   initialMode="register"
                   onAuthSuccess={handleAuthenticationSuccess}
-                  onNavigate={(view) => setActiveViewRoute(view)}
+                  onNavigate={handleNavigate}
                   addToast={dispatchToastNotification}
                 />
               </div>
@@ -276,7 +296,7 @@ export default function App() {
                 <AuthPortal
                   initialMode="forgot"
                   onAuthSuccess={handleAuthenticationSuccess}
-                  onNavigate={(view) => setActiveViewRoute(view)}
+                  onNavigate={handleNavigate}
                   addToast={dispatchToastNotification}
                 />
               </div>
@@ -284,49 +304,49 @@ export default function App() {
 
             {activeViewRoute === 'student-dashboard' && role === 'Student' && (
               <StudentConsole
-                onNavigate={(view) => setActiveViewRoute(view)}
+                onNavigate={handleNavigate}
                 addToast={dispatchToastNotification}
               />
             )}
 
             {activeViewRoute === 'admin-dashboard' && role === 'Admin' && (
               <AdminCommandCenter
-                onNavigate={(view) => setActiveViewRoute(view)}
+                onNavigate={handleNavigate}
                 addToast={dispatchToastNotification}
               />
             )}
 
             {activeViewRoute === 'problems' && role !== 'Guest' && (
               <ProblemArena
-                onNavigate={(view) => setActiveViewRoute(view)}
+                onNavigate={handleNavigate}
                 addToast={dispatchToastNotification}
               />
             )}
 
             {activeViewRoute === 'quizzes' && role !== 'Guest' && (
               <QuizCenter
-                onNavigate={(view) => setActiveViewRoute(view)}
+                onNavigate={handleNavigate}
                 addToast={dispatchToastNotification}
               />
             )}
 
             {activeViewRoute === 'leaderboard' && (
               <GlobalLeaderboard
-                onNavigate={(view) => setActiveViewRoute(view)}
+                onNavigate={handleNavigate}
               />
             )}
 
             {activeViewRoute === 'contests' && (
               <ContestHub
-                onNavigate={(view) => setActiveViewRoute(view)}
+                onNavigate={handleNavigate}
                 onEnterContest={(contestId) => {
                   if (role === 'Guest') {
-                    setActiveViewRoute('login');
+                    handleNavigate('login');
                     dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to view contest details.');
                     return;
                   }
                   setActiveContestId(contestId);
-                  setActiveViewRoute('contest-room');
+                  handleNavigate('contest-room');
                 }}
                 addToast={dispatchToastNotification}
               />
@@ -335,8 +355,8 @@ export default function App() {
             {activeViewRoute === 'contest-room' && activeContestId && role !== 'Guest' && (
               <ContestRoom
                 contestId={activeContestId}
-                onNavigate={(view) => setActiveViewRoute(view)}
-                onExit={() => setActiveViewRoute('contests')}
+                onNavigate={handleNavigate}
+                onExit={() => handleNavigate('contests')}
                 addToast={dispatchToastNotification}
               />
             )}
