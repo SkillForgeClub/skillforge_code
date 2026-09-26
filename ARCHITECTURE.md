@@ -79,8 +79,7 @@ coding_contest/
 │   ├── loadtest.mjs
 │   └── backup-db.mjs
 ├── docker-compose.yml      Production: api + worker + redis + nginx
-├── Dockerfile              Combined API+frontend image (Docker Compose)
-├── Dockerfile.api          API-only image (Render)
+├── Dockerfile              Combined API+frontend image (Render)
 ├── .env.example            All environment variables documented
 └── render.yaml             Render Blueprint for one-click deploy
 ```
@@ -300,7 +299,7 @@ worker          → /var/run/docker.sock (judge containers only)
 ### Split deployment (Vercel + Render)
 
 - Frontend: Vercel (set `VITE_API_URL` at build time)
-- Backend API: Render web service (`Dockerfile.api`)
+- Backend API: Render web service (Dockerfile)
 - Worker: Render background worker or separate VM
 - Database: Supabase
 - Redis: Redis Cloud / Upstash free tier

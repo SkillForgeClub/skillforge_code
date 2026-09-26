@@ -41,14 +41,14 @@ and there's no file/object storage anywhere in the app to migrate. Nothing to co
 
 ---
 
-## Part 2: Render (API + judge)
+## Part 2: Render (backend + judge)
 
 ### 2a. Create the service
 1. Push your repo to GitHub/GitLab if it isn't already there.
 2. Sign up at [render.com](https://render.com).
 3. **New +** → **Blueprint**, point it at your repo — Render will read `render.yaml` in this
-   repo and set up the API service automatically. (Alternatively: **New +** → **Web Service**,
-   select "Docker" as the runtime, and set the Dockerfile path to `Dockerfile.api`.)
+   repo and set up the service automatically. (Alternatively: **New +** → **Web Service**,
+   select "Docker" as the runtime, and it'll pick up the `Dockerfile` at the repo root.)
 
 ### 2b. Set environment variables
 In the Render dashboard, under your service's **Environment** tab, set:
@@ -62,8 +62,8 @@ password-reset emails, `JUDGE_CONCURRENCY`, `SUBMIT_MIN_GAP_MS`, `CONTEST_END_GR
 
 ### 2c. Deploy
 Click **Create Web Service** (or it deploys automatically from the Blueprint). Render builds
-the API image with Node.js and the Python/gcc/g++/OpenJDK runtimes needed by the judge. The
-frontend is not built or served by Render. This takes a few minutes on the first deploy.
+the Docker image (installs Node deps + Python/gcc/g++/OpenJDK + builds the frontend), then
+starts the service. This takes a few minutes on the first deploy.
 
 Render gives you a URL like `https://skillforge-backend.onrender.com` with HTTPS already
 handled — no separate certificate setup needed (unlike a raw VM).
@@ -93,8 +93,7 @@ node scripts/backup-db.mjs --keep 100
 ## Part 3: Vercel (frontend)
 
 1. At [vercel.com](https://vercel.com), **New Project** → import the repo.
-2. Framework preset: **Vite**. Root directory: `.`. Build command: `npm run build`.
-   Output directory: `dist`. The included `vercel.json` sends frontend routes to the SPA entry.
+2. Framework preset: **Vite**. Build command: `npm run build`. Output directory: `dist`.
 3. Under **Environment Variables**, add:
    ```
    VITE_API_URL = https://skillforge-backend.onrender.com
@@ -113,7 +112,7 @@ node scripts/backup-db.mjs --keep 100
    Vercel (frontend, static build)
           │  HTTPS, VITE_API_URL
           ▼
-   Render (Express API + judge; API-only Docker image)
+   Render (backend: Express API + judge)
           │  DATABASE_URL (Postgres wire protocol)
           ▼
    Supabase (managed Postgres)
