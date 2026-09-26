@@ -1,6 +1,5 @@
-# Render Blueprint - lets you deploy this backend with "New +  Blueprint" pointing at this
-# repo, instead of clicking through manual service setup. See DEPLOYMENT.md for the full
-# walkthrough including the values you still need to fill in (DATABASE_URL from Supabase, etc.)
+# Render Blueprint - deploys the API only. The Vite frontend is built and hosted separately
+# on Vercel. See DEPLOYMENT.md for the full walkthrough.
 #
 # Docs: https://render.com/docs/blueprint-spec
 
@@ -8,7 +7,7 @@ services:
   - type: web
     name: skillforge-backend
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./Dockerfile.api
     plan: free
     healthCheckPath: /api/health
     envVars:
