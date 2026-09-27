@@ -94,7 +94,7 @@ export default function App() {
   // The navbar's role control now doubles as the real session logout action.
   const handleNavigate = (view: string) => {
     const routeMap: Record<string, string> = {
-      home: '/',
+      home: role === 'Student' ? '/student' : role === 'Admin' ? '/admin' : '/',
       login: '/login',
       register: '/register',
       'forgot-password': '/forgot-password',
