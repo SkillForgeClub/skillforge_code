@@ -256,7 +256,24 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       INSERT INTO password_resets (email, code, expires_at, attempts) VALUES (?, ?, ?, 0)
       ON CONFLICT (email) DO UPDATE SET code=excluded.code, expires_at=excluded.expires_at, attempts=0
     `).run(normalizedEmail, code, expiresAt);
-    await sendResetCodeEmail(normalizedEmail, code);
+    try {
+      const emailSent = await sendResetCodeEmail(normalizedEmail, code);
+      if (!emailSent) {
+        if (process.env.NODE_ENV === 'production') {
+          await db.prepare(`DELETE FROM password_resets WHERE email=?`).run(normalizedEmail);
+          return res.status(503).json({ error: 'Password reset email is not configured. Please contact an administrator.' });
+        }
+        return res.json({
+          success: true,
+          message: 'SMTP is not configured. Use the development reset code shown in the app.',
+          developmentCode: code,
+        });
+      }
+    } catch (err) {
+      await db.prepare(`DELETE FROM password_resets WHERE email=?`).run(normalizedEmail);
+      console.error('[password-reset] Email delivery failed:', err);
+      return res.status(503).json({ error: 'Unable to send the password reset email. Please try again later.' });
+    }
   }
   res.json({ success: true, message: 'If an account exists for that email, a reset code has been sent.' });
 });

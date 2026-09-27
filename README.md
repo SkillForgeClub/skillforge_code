@@ -179,7 +179,7 @@ can keep attempting problems).
 
 ## Known simplifications (given the scope of this platform)
 
-- **Password reset delivery**: fully real end-to-end (real generated codes, real expiry, real attempt-limiting, real password changes, and now real email delivery via SMTP - see `server/email.ts` and the `SMTP_*` env vars in `.env.example`). Verified with an actual test SMTP server: the app sends a genuine email, and the flow completes correctly using the code from that email. Without `SMTP_HOST` set, it falls back to logging the code to the server console - fine for local dev, not for real students.
+- **Password reset delivery**: real generated codes, expiry, attempt-limiting, password changes, and email delivery via SMTP (see `server/email.ts` and the `SMTP_*` vars in `.env.example`). Without SMTP, local development shows a development-only code in the recovery screen; production returns a configuration error instead of claiming an email was sent. Configure SMTP before enabling password recovery for real users.
 
 - **Judge sandboxing**: code runs in a fresh temp directory with a `ulimit`-enforced memory/CPU cap and a wall-clock timeout, on the trusted single-tenant server process. This is fine for a college contest platform run by trusted staff, but it is **not** container-level sandboxing (no Docker/gVisor/seccomp). Don't expose it to anonymous public internet traffic without adding that - see "Going further" below.
 - **Java** requires a JDK with `javac` on the server's `PATH`. If missing, Java submissions return "Compilation Error: Java compiler (javac) is not installed on this server."

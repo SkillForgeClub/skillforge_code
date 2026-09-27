@@ -57,8 +57,10 @@ DATABASE_URL=<the Supabase connection string from Part 1>
 JWT_SECRET=<generate one: openssl rand -hex 32>
 ALLOWED_ORIGIN=https://your-app.vercel.app
 ```
-Optional (see `.env.example` for the full list): `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS` for real
-password-reset emails, `JUDGE_CONCURRENCY`, `SUBMIT_MIN_GAP_MS`, `CONTEST_END_GRACE_MS`.
+Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` (see
+`.env.example`) to enable password-reset emails. Password recovery returns a configuration
+error in production until SMTP is set up. Other optional settings include
+`JUDGE_CONCURRENCY`, `SUBMIT_MIN_GAP_MS`, and `CONTEST_END_GRACE_MS`.
 
 ### 2c. Deploy
 Click **Create Web Service** (or it deploys automatically from the Blueprint). Render builds

@@ -73,7 +73,7 @@ export const authApi = {
     request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
   me: () => request<Omit<AuthResponse, 'token'>>('/auth/me'),
   forgotPassword: (email: string) =>
-    request<{ success: boolean; message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    request<{ success: boolean; message: string; developmentCode?: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   verifyResetCode: (email: string, code: string) =>
     request<{ valid: boolean }>('/auth/verify-reset-code', { method: 'POST', body: JSON.stringify({ email, code }) }),
   resetPassword: (email: string, code: string, newPassword: string) =>

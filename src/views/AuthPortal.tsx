@@ -35,6 +35,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
 }) => {
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
   const [forgotPasswordStep, setForgotPasswordStep] = useState<1 | 2 | 3>(1); // 1: Email, 2: OTP, 3: Reset
+  const [developmentResetCode, setDevelopmentResetCode] = useState('');
   const { login, register } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -153,7 +154,8 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
     setValidationErrors({});
     setIsSubmitting(true);
     try {
-      await authApi.forgotPassword(emailInput);
+      const result = await authApi.forgotPassword(emailInput);
+      setDevelopmentResetCode(result.developmentCode ?? '');
       addToast('Verification Sent', 'success', 'If an account exists for that email, a reset code has been sent.');
       setForgotPasswordStep(2);
     } catch (err) {
@@ -203,6 +205,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
       addToast('Password Reset Successfully', 'success', 'Please sign in with your new credentials.');
       setAuthMode('login');
       setForgotPasswordStep(1);
+      setDevelopmentResetCode('');
       setPasswordInput('');
       setConfirmPasswordInput('');
       setOtpCodeInput('');
@@ -459,6 +462,11 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
                       Enter the 6-digit verification code sent to <br />
                       <span className="font-bold text-indigo-600 dark:text-indigo-400">{emailInput}</span>
                     </p>
+                    {developmentResetCode && (
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        Development reset code: <span className="font-extrabold tracking-widest">{developmentResetCode}</span>
+                      </p>
+                    )}
                     
                     <div className="relative max-w-[200px] mx-auto">
                       <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
@@ -480,7 +488,8 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
                       onClick={async () => {
                         setOtpCodeInput('');
                         try {
-                          await authApi.forgotPassword(emailInput);
+                          const result = await authApi.forgotPassword(emailInput);
+                          setDevelopmentResetCode(result.developmentCode ?? '');
                           addToast('Code Resent', 'success', 'A new code has been sent, if this email is registered.');
                         } catch (err) {
                           addToast('Resend Failed', 'error', err instanceof ApiError ? err.message : 'Could not reach the server.');
@@ -549,7 +558,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
               <div className="text-center pt-2">
                 <button
                   type="button"
-                  onClick={() => { setAuthMode('login'); setForgotPasswordStep(1); setValidationErrors({}); }}
+                  onClick={() => { setAuthMode('login'); setForgotPasswordStep(1); setDevelopmentResetCode(''); setValidationErrors({}); }}
                   className="text-xs font-bold text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-205 transition-colors bg-transparent border-none cursor-pointer"
                 >
                   Back to Sign In

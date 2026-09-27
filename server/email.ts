@@ -39,16 +39,18 @@ export function isEmailConfigured(): boolean {
 }
 
 /**
- * Sends the password-reset code by email. Falls back to a console log (the pre-existing
- * behavior) if SMTP isn't configured, so local dev and not-yet-configured deployments keep
- * working exactly as before - the code just isn't reachable anywhere but the server console
- * until SMTP_HOST is set.
+ * Sends the password-reset code by email. Returns false when SMTP is not configured so the
+ * route can expose a development-only code locally and reject the request in production.
  */
-export async function sendResetCodeEmail(toEmail: string, code: string): Promise<void> {
+export async function sendResetCodeEmail(toEmail: string, code: string): Promise<boolean> {
   if (!transporter) {
-    console.log(`[password-reset] SMTP not configured - code for ${toEmail}: ${code} (expires in 10 minutes)`);
-    console.log('[password-reset] Set SMTP_HOST/SMTP_USER/SMTP_PASS in .env to send this by real email instead. See .env.example.');
-    return;
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[password-reset] SMTP is not configured; reset email was not sent.');
+    } else {
+      console.log(`[password-reset] SMTP not configured - development code for ${toEmail}: ${code} (expires in 10 minutes)`);
+      console.log('[password-reset] Set SMTP_HOST/SMTP_USER/SMTP_PASS in .env to send this by real email instead. See .env.example.');
+    }
+    return false;
   }
 
   try {
@@ -67,10 +69,9 @@ export async function sendResetCodeEmail(toEmail: string, code: string): Promise
       `,
     });
     console.log(`[password-reset] Reset code emailed to ${toEmail}`);
+    return true;
   } catch (err) {
-    // Never let an email delivery failure break the request/response cycle for the user -
-    // fall back to the console log so the admin can still retrieve the code if needed.
     console.error(`[password-reset] Failed to send email to ${toEmail}:`, err);
-    console.log(`[password-reset] Fallback - code for ${toEmail}: ${code}`);
+    throw new Error('Password reset email could not be delivered.');
   }
 }
