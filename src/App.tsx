@@ -54,6 +54,16 @@ export default function App() {
     setActiveViewRoute(viewMap[path] || 'home');
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (isLoading || location.pathname !== '/') return;
+
+    if (role === 'Student') {
+      navigate('/student', { replace: true });
+    } else if (role === 'Admin') {
+      navigate('/admin', { replace: true });
+    }
+  }, [isLoading, location.pathname, navigate, role]);
+
   // Toggle dark mode class on HTML document
   useEffect(() => {
     if (isDarkModeActive) {
