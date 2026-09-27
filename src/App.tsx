@@ -266,17 +266,29 @@ export default function App() {
         {renderRoutePage() || (
           <>
             {activeViewRoute === 'home' && (
-              <LandingPage 
-                onNavigate={(view) => {
-                  if ((view === 'problems' || view === 'quizzes') && role === 'Guest') {
-                    handleNavigate('login');
-                    dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to access compilation problems.');
-                  } else {
-                    handleNavigate(view);
-                  }
-                }} 
-                onSelectRole={() => handleNavigate('login')}
-              />
+              role === 'Student' ? (
+                <StudentConsole
+                  onNavigate={handleNavigate}
+                  addToast={dispatchToastNotification}
+                />
+              ) : role === 'Admin' ? (
+                <AdminCommandCenter
+                  onNavigate={handleNavigate}
+                  addToast={dispatchToastNotification}
+                />
+              ) : (
+                <LandingPage
+                  onNavigate={(view) => {
+                    if ((view === 'problems' || view === 'quizzes') && role === 'Guest') {
+                      handleNavigate('login');
+                      dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to access compilation problems.');
+                    } else {
+                      handleNavigate(view);
+                    }
+                  }}
+                  onSelectRole={() => handleNavigate('login')}
+                />
+              )
             )}
 
             {activeViewRoute === 'login' && (
