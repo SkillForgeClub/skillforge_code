@@ -87,6 +87,15 @@ function toStudent(row: any) {
   };
 }
 
+async function toRankedStudent(row: any) {
+  const rankedStudents = await db.prepare(`
+    SELECT id FROM users WHERE role='student'
+    ORDER BY points DESC, (easy_solved + medium_solved + hard_solved) DESC
+  `).all();
+  const rank = rankedStudents.findIndex((student: any) => student.id === row.id) + 1;
+  return { ...toStudent(row), rank };
+}
+
 async function toProblemSummary(row: any, studentId?: string) {
   let status: 'Solved' | 'Attempted' | 'Unsolved' = row.problem_status || 'Unsolved';
   if (studentId && !row.problem_status) {
@@ -196,7 +205,7 @@ app.post('/api/auth/register', async (req, res) => {
 
   const row = await db.prepare(`SELECT * FROM users WHERE id=?`).get(id);
   const token = signToken({ id, role: 'student', email: String(email).toLowerCase() });
-  res.status(201).json({ token, user: toStudent(row), role: 'student' });
+  res.status(201).json({ token, user: await toRankedStudent(row), role: 'student' });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -214,7 +223,7 @@ app.post('/api/auth/login', async (req, res) => {
   if (row.role === 'admin') {
     res.json({ token, role: 'admin', user: { id: row.id, fullName: row.full_name, email: row.email } });
   } else {
-    res.json({ token, role: 'student', user: toStudent(row) });
+    res.json({ token, role: 'student', user: await toRankedStudent(row) });
   }
 });
 
@@ -224,7 +233,7 @@ app.get('/api/auth/me', requireAuth, async (req: AuthedRequest, res) => {
   if (row.role === 'admin') {
     return res.json({ role: 'admin', user: { id: row.id, fullName: row.full_name, email: row.email } });
   }
-  res.json({ role: 'student', user: toStudent(row) });
+  res.json({ role: 'student', user: await toRankedStudent(row) });
 });
 
 // Forgot-password flow. Genuinely backed by the database (real generated code, real expiry,
