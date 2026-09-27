@@ -253,7 +253,6 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
                   />
                 </div>
                 {validationErrors.email && <p className="text-[10px] text-red-500 font-bold">{validationErrors.email}</p>}
-                <p className="text-[10px] text-zinc-450 font-semibold italic">Demo student login: any seeded student email / student123. Demo admin: admin@skillforge.dev / admin123.</p>
               </div>
 
               {/* Password */}
