@@ -116,7 +116,7 @@ export interface JudgeCaseResult {
 }
 
 export interface RunResponse {
-  mode: 'custom' | 'public-tests';
+  mode: 'public-tests';
   status: string;
   stdout?: string;
   stderr?: string;
@@ -177,7 +177,7 @@ export const submissionsApi = {
 
   /** Kicks off a run job and polls until it's done, reporting live queue status via onProgress. */
   run: async (
-    data: { problemId: string; language: ProgrammingLanguage; code: string; customInput?: string },
+    data: { problemId: string; language: ProgrammingLanguage; code: string },
     onProgress?: (status: QueuedJobStatus) => void
   ): Promise<RunResponse> => {
     const kicked = await request<{ runId: string; status: 'Queued' } & QueueStats>('/submissions/run', {

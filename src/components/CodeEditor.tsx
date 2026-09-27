@@ -30,7 +30,7 @@ interface CodeEditorProps {
   problem: CodingProblem;
   selectedLanguage: ProgrammingLanguage;
   onLanguageChange: (lang: ProgrammingLanguage) => void;
-  onRun?: (code: string, customInput: string) => void;
+  onRun?: (code: string) => void;
   onSubmit?: (code: string, status?: string) => void;
   contestId?: string;
   /**
@@ -68,12 +68,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastSaved, setLastSaved] = useState<string>('Just now');
   
-  // Custom execution state
-  const [customInput, setCustomInput] = useState<string>('');
-  const [useCustomInput, setUseCustomInput] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'results' | 'testcases' | 'custom'>('testcases');
+  const [activeTab, setActiveTab] = useState<'results' | 'testcases'>('testcases');
   
   // Output logs
   const [outputLogs, setOutputLogs] = useState<{
@@ -141,7 +138,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           problemId: problem.id,
           language: selectedLanguage,
           code,
-          customInput: useCustomInput ? customInput : undefined,
         },
         (progress) => {
           setOutputLogs((prev) => ({
@@ -154,31 +150,18 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         }
       );
 
-      if (result.mode === 'custom') {
-        setOutputLogs({
-          status: result.status === 'Accepted' ? 'success' : result.status === 'Compilation Error' ? 'error' : 'failed',
-          verdict: result.status,
-          summary: result.status,
-          stdout: result.compileError
-            ? result.compileError
-            : `${result.stdout || ''}${result.stderr ? `\nstderr:\n${result.stderr}` : ''}`,
-          timeMs: result.timeMs,
-          memoryKb: result.memoryKb,
-        });
-      } else {
-        const cases = result.testCasesChecked || [];
-        const allPassed = cases.every(c => c.passed);
-        setOutputLogs({
-          status: result.status === 'Compilation Error' ? 'error' : allPassed ? 'success' : 'failed',
-          verdict: result.status,
-          summary: result.compileError || (allPassed ? 'All Public Test Cases Passed' : `${result.status}: some test cases failed.`),
-          timeMs: result.timeMs,
-          memoryKb: result.memoryKb,
-          testCasesChecked: cases,
-        });
-      }
+      const cases = result.testCasesChecked || [];
+      const allPassed = cases.every(c => c.passed);
+      setOutputLogs({
+        status: result.status === 'Compilation Error' ? 'error' : allPassed ? 'success' : 'failed',
+        verdict: result.status,
+        summary: result.compileError || (allPassed ? 'All Public Test Cases Passed' : `${result.status}: some test cases failed.`),
+        timeMs: result.timeMs,
+        memoryKb: result.memoryKb,
+        testCasesChecked: cases,
+      });
 
-      if (onRun) onRun(code, useCustomInput ? customInput : '');
+      if (onRun) onRun(code);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not reach the judge server. Please try again.';
       setOutputLogs({ status: 'error', summary: message });
@@ -383,16 +366,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               Public Test Cases
             </button>
             <button
-              onClick={() => setActiveTab('custom')}
-              className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors ${
-                activeTab === 'custom'
-                  ? 'border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
-              }`}
-            >
-              Custom Input
-            </button>
-            <button
               onClick={() => setActiveTab('results')}
               className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors relative ${
                 activeTab === 'results'
@@ -440,33 +413,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     </div>
                   </div>
                 ))}
-              </div>
-            )}
-
-            {/* TAB: Custom Input */}
-            {activeTab === 'custom' && (
-              <div className="space-y-3 h-full flex flex-col">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={useCustomInput}
-                    onChange={(e) => setUseCustomInput(e.target.checked)}
-                    className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">Enable Custom Input</span>
-                </label>
-                <textarea
-                  value={customInput}
-                  onChange={(e) => setCustomInput(e.target.value)}
-                  disabled={!useCustomInput}
-                  placeholder="Enter inputs here..."
-                  className={`w-full flex-grow p-3 rounded-lg border focus:ring-1 focus:ring-indigo-500 outline-none text-[11px] font-mono resize-none ${
-                    useCustomInput 
-                      ? 'bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100' 
-                      : 'bg-zinc-100 dark:bg-zinc-800 border-transparent text-zinc-400 cursor-not-allowed'
-                  }`}
-                  rows={6}
-                />
               </div>
             )}
 

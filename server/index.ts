@@ -524,7 +524,7 @@ app.get('/api/health', (_req, res) => res.json({
 }));
 
 app.post('/api/submissions/run', requireAuth, async (req: AuthedRequest, res) => {
-  const { problemId, language, code, customInput } = req.body || {};
+  const { problemId, language, code } = req.body || {};
   const probRow = await db.prepare(`SELECT * FROM problems WHERE id=?`).get(problemId);
   if (!probRow) return res.status(404).json({ error: 'Problem not found.' });
 
@@ -535,12 +535,6 @@ app.post('/api/submissions/run', requireAuth, async (req: AuthedRequest, res) =>
   runQueued(async () => {
     const job = runJobs.get(runId);
     if (job) job.status = 'Running';
-
-    if (typeof customInput === 'string' && customInput.length > 0) {
-      const result = await runCustom(langToJudge(language), code, customInput);
-      runJobs.set(runId, { status: 'Done', userId: req.user!.id, createdAt: Date.now(), result: { mode: 'custom', ...result } });
-      return;
-    }
 
     const allCases = await getTestCases(problemId);
     const publicCases = allCases.filter((tc: any) => tc.is_public);
@@ -806,9 +800,8 @@ app.post('/api/quizzes/:id/submit', requireAuth, async (req: AuthedRequest, res)
   } else {
     await db.prepare(`INSERT INTO quiz_attempts (id, quiz_id, user_id, answers, score, max_score, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
       .run(newId('attempt'), req.params.id, req.user!.id, JSON.stringify(answers), score, maxScore, nowIso());
+    await db.prepare(`UPDATE users SET points = points + ? WHERE id=?`).run(score, req.user!.id);
   }
-
-  await db.prepare(`UPDATE users SET points = points + ? WHERE id=?`).run(score, req.user!.id);
 
   res.json({ score, maxScore, breakdown });
 });
