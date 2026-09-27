@@ -319,7 +319,9 @@ async function prepare(language: Language, code: string, workDir: string, opts: 
     }
 
     case 'Java': {
-      const src = path.join(workDir, 'Solution.java');
+      const match = /public\s+class\s+(\w+)/.exec(code);
+      const className = match?.[1] || 'Solution';
+      const src = path.join(workDir, `${className}.java`);
       fs.writeFileSync(src, code);
       if (JUDGE_RUNTIME !== 'docker' && !toolAvailable('javac')) {
         return { ok: false, stderr: 'Java compiler (javac) is not installed on this server.', run: () => Promise.resolve(DEAD_RUN) };
@@ -331,7 +333,7 @@ async function prepare(language: Language, code: string, workDir: string, opts: 
         ok: true,
         run: (input) => runProcessAsync(
           'java',
-          [`-Xmx${javaHeapMb}m`, '-XX:+UseSerialGC', '-cp', classPath, 'Solution'],
+          [`-Xmx${javaHeapMb}m`, '-XX:+UseSerialGC', '-cp', classPath, className],
           input, workDir, timeLimitMs, memMb, false
         ),
       };
