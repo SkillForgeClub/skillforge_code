@@ -57,10 +57,22 @@ DATABASE_URL=<the Supabase connection string from Part 1>
 JWT_SECRET=<generate one: openssl rand -hex 32>
 ALLOWED_ORIGIN=https://your-app.vercel.app
 ```
-Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` (see
-`.env.example`) to enable password-reset emails. Password recovery returns a configuration
-error in production until SMTP is set up. Other optional settings include
-`JUDGE_CONCURRENCY`, `SUBMIT_MIN_GAP_MS`, and `CONTEST_END_GRACE_MS`.
+For password-reset email, set `RESEND_API_KEY` and `RESEND_FROM` (see below). Resend sends
+over HTTPS. Password recovery returns a configuration error in production until both values
+are configured. Other optional settings include `JUDGE_CONCURRENCY`, `SUBMIT_MIN_GAP_MS`, and
+`CONTEST_END_GRACE_MS`.
+
+#### Resend setup
+
+1. Create a [Resend account](https://resend.com) and an API key with permission to send email.
+2. In Render's backend Environment settings, set `RESEND_API_KEY` to that API key and
+   `RESEND_FROM` to `SkillForge Code <onboarding@resend.dev>` for initial testing. The
+   onboarding sender can only deliver to the email address associated with your Resend
+   account.
+3. Save the environment changes and redeploy the backend.
+4. Later, verify your sending domain in Resend, add its required DNS records, and change
+   `RESEND_FROM` to an address on that domain, such as
+   `SkillForge Code <noreply@your-domain.com>`.
 
 ### 2c. Deploy
 Click **Create Web Service** (or it deploys automatically from the Blueprint). Render builds
