@@ -174,40 +174,42 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {/* Account menu: shows real logged-in user + logout */}
-            <div className="relative">
-              <button
-                onClick={() => setShowRoleDropdown(!showRoleDropdown)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/50 dark:border-indigo-900/40 hover:bg-indigo-100 dark:hover:bg-indigo-950/80 text-indigo-700 dark:text-indigo-400 text-xs font-bold transition-colors"
-              >
-                <User className="h-4 w-4" />
-                <span>{currentRole === 'Guest' ? 'Guest' : displayName || currentRole}</span>
-              </button>
+            {currentRole !== 'Guest' && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowRoleDropdown(!showRoleDropdown)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/50 dark:border-indigo-900/40 hover:bg-indigo-100 dark:hover:bg-indigo-950/80 text-indigo-700 dark:text-indigo-400 text-xs font-bold transition-colors"
+                >
+                  <User className="h-4 w-4" />
+                  <span>{displayName || currentRole}</span>
+                </button>
 
-              <AnimatePresence>
-                {showRoleDropdown && currentRole !== 'Guest' && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowRoleDropdown(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="absolute right-0 mt-2 w-52 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl z-50 p-1.5 space-y-1"
-                    >
-                      <div className="px-2.5 py-1 text-[10px] text-zinc-400 font-bold uppercase tracking-wider border-b border-zinc-100 dark:border-zinc-800 pb-1.5 mb-1">
-                        {currentRole === 'Student' ? 'Student Account' : 'Administrator Account'}
-                      </div>
-                      <button
-                        onClick={() => { onRoleChange('Guest'); setShowRoleDropdown(false); onNavigate('home'); }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                <AnimatePresence>
+                  {showRoleDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowRoleDropdown(false)} />
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="absolute right-0 mt-2 w-52 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl z-50 p-1.5 space-y-1"
                       >
-                        <LogOut className="h-3.5 w-3.5" />
-                        <span>Log Out</span>
-                      </button>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
+                        <div className="px-2.5 py-1 text-[10px] text-zinc-400 font-bold uppercase tracking-wider border-b border-zinc-100 dark:border-zinc-800 pb-1.5 mb-1">
+                          {currentRole === 'Student' ? 'Student Account' : 'Administrator Account'}
+                        </div>
+                        <button
+                          onClick={() => { onRoleChange('Guest'); setShowRoleDropdown(false); onNavigate('home'); }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                        >
+                          <LogOut className="h-3.5 w-3.5" />
+                          <span>Log Out</span>
+                        </button>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
 
             {currentRole === 'Guest' && (
               <div className="flex gap-2">
