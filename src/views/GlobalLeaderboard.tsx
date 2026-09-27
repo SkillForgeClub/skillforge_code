@@ -9,6 +9,8 @@ import {
   Search, 
   Star, 
   Flame, 
+  Crown,
+  Sparkles,
 } from 'lucide-react';
 import { LeaderboardEntry } from '../types';
 import { leaderboardApi, ApiError } from '../services/api';
@@ -48,6 +50,8 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
     return matchesSearch && matchesStar;
   });
 
+  const isDiamond = (entry: LeaderboardEntry) => entry.starRating >= 5;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 bg-zinc-50 dark:bg-[#0a0a0a] transition-colors min-h-screen">
       
@@ -67,16 +71,17 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
         
         {/* SECOND PLACE (Podium Left) */}
         {secondPlaceWinner && (
-          <div className="order-2 md:order-1 p-6 bg-white dark:bg-[#141414] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 text-center space-y-4 shadow-sm md:h-[240px] flex flex-col justify-between">
+          <div className={`order-2 md:order-1 p-6 rounded-2xl text-center space-y-4 shadow-sm md:h-[240px] flex flex-col justify-between ${isDiamond(secondPlaceWinner) ? 'diamond-card border border-amber-300/80 bg-indigo-950 text-white' : 'bg-white dark:bg-[#141414] border border-zinc-200 dark:border-zinc-800/80'}`}>
             <div className="space-y-2">
               <div className="flex justify-center">
-                <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-black text-zinc-550 border-2 border-zinc-300 relative">
+                <div className={`h-12 w-12 rounded-full flex items-center justify-center font-black border-2 relative ${isDiamond(secondPlaceWinner) ? 'bg-amber-400/15 text-amber-300 border-amber-300' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-550 border-zinc-300'}`}>
                   2
+                  {isDiamond(secondPlaceWinner) && <Crown className="diamond-crown absolute -top-4 h-4 w-4 text-amber-300" />}
                 </div>
               </div>
               <div>
-                <h4 className="font-extrabold text-xs text-zinc-900 dark:text-white leading-tight">{secondPlaceWinner.fullName}</h4>
-                <span className="text-[10px] text-zinc-400">{secondPlaceWinner.rollNumber}</span>
+                <h4 className="font-extrabold text-xs leading-tight">{secondPlaceWinner.fullName}</h4>
+                <span className={`text-[10px] ${isDiamond(secondPlaceWinner) ? 'text-indigo-200' : 'text-zinc-400'}`}>{secondPlaceWinner.rollNumber}</span>
               </div>
             </div>
 
@@ -93,13 +98,14 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
 
         {/* FIRST PLACE (Podium Center, Styled Larger) */}
         {firstPlaceWinner && (
-          <div className="order-1 md:order-2 p-8 bg-gradient-to-b from-indigo-950 to-indigo-900 text-white rounded-3xl border border-indigo-950 text-center space-y-4 shadow-lg md:h-[280px] flex flex-col justify-between relative overflow-hidden">
+          <div className={`order-1 md:order-2 p-8 rounded-3xl text-white text-center space-y-4 shadow-lg md:h-[280px] flex flex-col justify-between relative overflow-hidden ${isDiamond(firstPlaceWinner) ? 'diamond-card border border-amber-300/80' : 'bg-gradient-to-b from-indigo-950 to-indigo-900 border border-indigo-950'}`}>
             <div className="absolute top-0 right-0 w-36 h-36 bg-white/5 rounded-full blur-2xl pointer-events-none" />
             
             <div className="space-y-2 relative z-10">
               <div className="flex justify-center">
                 <div className="h-16 w-16 rounded-full bg-amber-400/20 flex items-center justify-center font-black text-amber-300 border-2 border-amber-400 relative">
                   1
+                  {isDiamond(firstPlaceWinner) && <Crown className="diamond-crown absolute -top-5 h-5 w-5 text-amber-300" />}
                 </div>
               </div>
               <div>
@@ -121,11 +127,12 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
 
         {/* THIRD PLACE (Podium Right) */}
         {thirdPlaceWinner && (
-          <div className="order-3 p-6 bg-white dark:bg-[#141414] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 text-center space-y-4 shadow-sm md:h-[240px] flex flex-col justify-between">
+          <div className={`order-3 p-6 rounded-2xl text-center space-y-4 shadow-sm md:h-[240px] flex flex-col justify-between ${isDiamond(thirdPlaceWinner) ? 'diamond-card border border-amber-300/80 bg-indigo-950 text-white' : 'bg-white dark:bg-[#141414] border border-zinc-200 dark:border-zinc-800/80'}`}>
             <div className="space-y-2">
               <div className="flex justify-center">
-                <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-black text-amber-700 border-2 border-amber-600/70 relative">
+                <div className={`h-12 w-12 rounded-full flex items-center justify-center font-black border-2 relative ${isDiamond(thirdPlaceWinner) ? 'bg-amber-400/15 text-amber-300 border-amber-300' : 'bg-zinc-100 dark:bg-zinc-800 text-amber-700 border-amber-600/70'}`}>
                   3
+                  {isDiamond(thirdPlaceWinner) && <Crown className="diamond-crown absolute -top-4 h-4 w-4 text-amber-300" />}
                 </div>
               </div>
               <div>
@@ -203,7 +210,7 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filteredRankingEntries.map((entry) => {
                 return (
-                  <tr key={entry.studentId} className="hover:bg-zinc-50/30 transition-colors">
+                  <tr key={entry.studentId} className={`transition-colors ${isDiamond(entry) ? 'diamond-row' : 'hover:bg-zinc-50/30'}`}>
                     <td className="px-6 py-4">
                       <span className={`font-black text-xs ${
                         entry.rank === 1 ? 'text-amber-500' :
@@ -215,7 +222,10 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-extrabold text-zinc-900 dark:text-white block">{entry.fullName}</span>
+                      <span className="font-extrabold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                        {isDiamond(entry) && <><Crown className="h-3.5 w-3.5 text-amber-500" /><Sparkles className="diamond-sparkle h-3.5 w-3.5 text-cyan-500" /></>}
+                        {entry.fullName}
+                      </span>
                     </td>
                     <td className="px-6 py-4 font-mono">{entry.rollNumber}</td>
                     <td className="px-6 py-4 font-semibold">{entry.solvedCount} problems</td>
