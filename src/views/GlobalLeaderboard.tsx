@@ -9,7 +9,6 @@ import {
   Search, 
   Star, 
   Flame, 
-  Crown
 } from 'lucide-react';
 import { LeaderboardEntry } from '../types';
 import { leaderboardApi, ApiError } from '../services/api';
@@ -73,7 +72,6 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
               <div className="flex justify-center">
                 <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-black text-zinc-550 border-2 border-zinc-300 relative">
                   2
-                  <span className="absolute -top-1.5 right-1.5 text-xs">🥈</span>
                 </div>
               </div>
               <div>
@@ -101,8 +99,7 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
             <div className="space-y-2 relative z-10">
               <div className="flex justify-center">
                 <div className="h-16 w-16 rounded-full bg-amber-400/20 flex items-center justify-center font-black text-amber-300 border-2 border-amber-400 relative">
-                  <Crown className="h-6 w-6 text-amber-400" />
-                  <span className="absolute -top-1 right-1 text-xs">🥇</span>
+                  1
                 </div>
               </div>
               <div>
@@ -129,7 +126,6 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ onNavigate
               <div className="flex justify-center">
                 <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-black text-amber-700 border-2 border-amber-600/70 relative">
                   3
-                  <span className="absolute -top-1.5 right-1.5 text-xs">🥉</span>
                 </div>
               </div>
               <div>
