@@ -208,17 +208,7 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(401).json({ error: 'Invalid email or password.' });
   }
   if (row.role === 'student') {
-    const today = todayUtc();
-    let loginStreak = row.streak;
-    if (row.last_login_date !== today) {
-      const yesterday = new Date(`${today}T00:00:00.000Z`);
-      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-      const yesterdayKey = yesterday.toISOString().slice(0, 10);
-      loginStreak = row.last_login_date === yesterdayKey ? row.streak + 1 : 1;
-      await db.prepare(`UPDATE users SET streak=?, last_login_date=?, last_solved_date=? WHERE id=?`).run(loginStreak, today, today, row.id);
-      row.streak = loginStreak;
-      row.last_login_date = today;
-    }
+    await db.prepare(`UPDATE users SET last_login_date=? WHERE id=?`).run(todayUtc(), row.id);
   }
   const token = signToken({ id: row.id, role: row.role, email: row.email });
   if (row.role === 'admin') {
