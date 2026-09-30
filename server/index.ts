@@ -66,6 +66,12 @@ function todayUtc() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function currentStreak(row: any) {
+  const today = todayUtc();
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  return row.last_solved_date === today || row.last_solved_date === yesterday ? row.streak : 0;
+}
+
 // ---------------------------------------------------------------------------
 // Serialization helpers: DB rows (snake_case) -> frontend shapes (camelCase)
 // ---------------------------------------------------------------------------
@@ -80,7 +86,7 @@ function toStudent(row: any) {
     level: row.level,
     rank: 0, // computed on the leaderboard endpoint
     problemsSolved: { easy: row.easy_solved, medium: row.medium_solved, hard: row.hard_solved },
-    streak: row.streak,
+    streak: currentStreak(row),
     points: row.points,
     certificates: JSON.parse(row.certificates || '[]'),
     badges: [],
@@ -828,7 +834,7 @@ app.post('/api/quizzes/:id/submit', requireAuth, async (req: AuthedRequest, res)
 
 app.get('/api/leaderboard', async (_req, res) => {
   const rows = await db.prepare(`
-    SELECT id, full_name, roll_number, star_rating, streak, points, easy_solved, medium_solved, hard_solved
+    SELECT id, full_name, roll_number, star_rating, streak, last_solved_date, points, easy_solved, medium_solved, hard_solved
     FROM users WHERE role='student'
     ORDER BY points DESC, (easy_solved + medium_solved + hard_solved) DESC
   `).all();
@@ -839,7 +845,7 @@ app.get('/api/leaderboard', async (_req, res) => {
     rollNumber: r.roll_number,
     solvedCount: r.easy_solved + r.medium_solved + r.hard_solved,
     points: r.points,
-    streak: r.streak,
+    streak: currentStreak(r),
     starRating: r.star_rating,
   })));
 });
