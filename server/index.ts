@@ -84,6 +84,12 @@ function invalidateCache(...keys: string[]) {
   keys.forEach((key) => apiCache.delete(key));
 }
 
+function invalidateCachePrefix(prefix: string) {
+  for (const key of apiCache.keys()) {
+    if (key.startsWith(prefix)) apiCache.delete(key);
+  }
+}
+
 function currentStreak(row: any) {
   const today = todayUtc();
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -433,6 +439,7 @@ app.post('/api/problems', requireAuth, requireAdmin, async (req, res) => {
     await insertTC.run(newId('tc'), id, tc.input || '', tc.expectedOutput || '', tc.isPublic ? 1 : 0, idx);
   }
   const row = await db.prepare(`SELECT * FROM problems WHERE id=?`).get(id);
+  invalidateCachePrefix('problems:');
   res.status(201).json(await toProblemFull(row, undefined, true));
 });
 
@@ -488,6 +495,7 @@ app.post('/api/problems/bulk', requireAuth, requireAdmin, async (req, res) => {
   }
 
   const successCount = results.filter(r => r.success).length;
+  if (successCount > 0) invalidateCachePrefix('problems:');
   res.status(201).json({ total: items.length, succeeded: successCount, failed: items.length - successCount, results });
 });
 
@@ -516,6 +524,8 @@ app.put('/api/problems/:id', requireAuth, requireAdmin, async (req, res) => {
       await insertTC.run(tc.id && tc.id.startsWith('tc-') ? tc.id : newId('tc'), req.params.id, tc.input || '', tc.expectedOutput || '', tc.isPublic ? 1 : 0, idx);
     }
   }
+  invalidateCachePrefix('problems:');
+  testCaseCache.delete(req.params.id);
   const row = await db.prepare(`SELECT * FROM problems WHERE id=?`).get(req.params.id);
   res.json(await toProblemFull(row, undefined, true));
 });
@@ -523,6 +533,8 @@ app.put('/api/problems/:id', requireAuth, requireAdmin, async (req, res) => {
 app.delete('/api/problems/:id', requireAuth, requireAdmin, async (req, res) => {
   const result = await db.prepare(`DELETE FROM problems WHERE id=?`).run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Problem not found.' });
+  invalidateCachePrefix('problems:');
+  testCaseCache.delete(req.params.id);
   res.json({ success: true });
 });
 
@@ -684,6 +696,7 @@ app.post('/api/submissions/submit', requireAuth, async (req: AuthedRequest, res)
       .run(summary.overallStatus, summary.timeMs, summary.memoryKb, JSON.stringify({ compileError: summary.compileError, testCasesChecked }), subId);
 
     await db.prepare(`UPDATE problems SET attempt_count = attempt_count + 1 WHERE id=?`).run(problemId);
+    invalidateCachePrefix('problems:');
 
     if (summary.overallStatus === 'Accepted') {
       const alreadySolvedBefore = !!(await db.prepare(`
@@ -712,11 +725,13 @@ app.post('/api/submissions/submit', requireAuth, async (req: AuthedRequest, res)
             star_rating = GREATEST(star_rating, ?)
           WHERE id=?
         `).run(pointsAward, newStreak, today, computeStarRating(userRow.points + pointsAward), req.user!.id);
+        invalidateCache('leaderboard:list');
       }
     }
   }).catch(async (err) => {
     await db.prepare(`UPDATE submissions SET status='Runtime Error', result_json=? WHERE id=?`)
       .run(JSON.stringify({ compileError: String(err), testCasesChecked: [] }), subId);
+    invalidateCachePrefix('problems:');
   }).finally(() => {
     markFinished(req.user!.id);
   });
@@ -792,6 +807,7 @@ app.post('/api/quizzes', requireAuth, requireAdmin, async (req, res) => {
   }
 
   const row = await db.prepare(`SELECT * FROM quizzes WHERE id=?`).get(id);
+  invalidateCache('quizzes:list');
   res.status(201).json(await toQuizFull(row));
 });
 
@@ -819,6 +835,7 @@ app.put('/api/quizzes/:id', requireAuth, requireAdmin, async (req, res) => {
       );
     }
   }
+  invalidateCache('quizzes:list');
   const row = await db.prepare(`SELECT * FROM quizzes WHERE id=?`).get(req.params.id);
   res.json(await toQuizFull(row));
 });
@@ -826,6 +843,7 @@ app.put('/api/quizzes/:id', requireAuth, requireAdmin, async (req, res) => {
 app.delete('/api/quizzes/:id', requireAuth, requireAdmin, async (req, res) => {
   const result = await db.prepare(`DELETE FROM quizzes WHERE id=?`).run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Quiz not found.' });
+  invalidateCache('quizzes:list');
   res.json({ success: true });
 });
 
@@ -874,8 +892,10 @@ app.post('/api/quizzes/:id/submit', requireAuth, async (req: AuthedRequest, res)
     await db.prepare(`INSERT INTO quiz_attempts (id, quiz_id, user_id, answers, score, max_score, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
       .run(newId('attempt'), req.params.id, req.user!.id, JSON.stringify(answers), score, maxScore, nowIso());
     await db.prepare(`UPDATE users SET points = points + ? WHERE id=?`).run(score, req.user!.id);
+    invalidateCache('leaderboard:list');
   }
 
+  invalidateCache('quizzes:list');
   res.json({ score, maxScore, breakdown });
 });
 
@@ -963,6 +983,7 @@ app.post('/api/admin/materials', requireAuth, requireAdmin, async (req, res) => 
   );
 
   const row = await db.prepare(`SELECT * FROM study_materials WHERE id=?`).get(payload.id);
+  invalidateCache('materials:list', 'admin:materials:list');
   res.status(201).json(toStudyMaterial(row));
 });
 
@@ -1001,12 +1022,14 @@ app.put('/api/admin/materials/:id', requireAuth, requireAdmin, async (req, res) 
   );
 
   const row = await db.prepare(`SELECT * FROM study_materials WHERE id=?`).get(req.params.id);
+  invalidateCache('materials:list', 'admin:materials:list');
   res.json(toStudyMaterial(row));
 });
 
 app.delete('/api/admin/materials/:id', requireAuth, requireAdmin, async (req, res) => {
   const result = await db.prepare(`DELETE FROM study_materials WHERE id=?`).run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Study material not found.' });
+  invalidateCache('materials:list', 'admin:materials:list');
   res.json({ success: true });
 });
 

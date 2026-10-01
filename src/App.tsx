@@ -3,21 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Toast, ToastMessage } from './components/Toast';
-import { LandingPage } from './views/LandingPage';
 import { AuthPortal } from './views/AuthPortal';
-import { StudentConsole } from './views/StudentConsole';
-import { AdminCommandCenter } from './views/AdminCommandCenter';
-import { ProblemArena } from './views/ProblemArena';
-import { QuizCenter } from './views/QuizCenter';
-import { GlobalLeaderboard } from './views/GlobalLeaderboard';
-import { ContestHub } from './views/ContestHub';
-import { ContestRoom } from './views/ContestRoom';
-import { TermsPage, SecurityPage, AboutPage, DepartmentPage } from './views/PolicyPages';
 import { useAuth } from './context/AuthContext';
+
+const LandingPage = lazy(() => import('./views/LandingPage').then((module) => ({ default: module.LandingPage })));
+const StudentConsole = lazy(() => import('./views/StudentConsole').then((module) => ({ default: module.StudentConsole })));
+const AdminCommandCenter = lazy(() => import('./views/AdminCommandCenter').then((module) => ({ default: module.AdminCommandCenter })));
+const ProblemArena = lazy(() => import('./views/ProblemArena').then((module) => ({ default: module.ProblemArena })));
+const QuizCenter = lazy(() => import('./views/QuizCenter').then((module) => ({ default: module.QuizCenter })));
+const GlobalLeaderboard = lazy(() => import('./views/GlobalLeaderboard').then((module) => ({ default: module.GlobalLeaderboard })));
+const ContestHub = lazy(() => import('./views/ContestHub').then((module) => ({ default: module.ContestHub })));
+const ContestRoom = lazy(() => import('./views/ContestRoom').then((module) => ({ default: module.ContestRoom })));
+const TermsPage = lazy(() => import('./views/PolicyPages').then((module) => ({ default: module.TermsPage })));
+const SecurityPage = lazy(() => import('./views/PolicyPages').then((module) => ({ default: module.SecurityPage })));
 
 export default function App() {
   const location = useLocation();
@@ -263,8 +265,9 @@ export default function App() {
       />
 
       {/* 2. ROUTER SWITCHER */}
-      <div className="animate-fade-in">
-        {renderRoutePage() || (
+      <Suspense fallback={<div className="min-h-[50vh] flex items-center justify-center text-zinc-400 text-xs font-bold uppercase tracking-widest">Loading...</div>}>
+        <div className="animate-fade-in">
+          {renderRoutePage() || (
           <>
             {activeViewRoute === 'home' && (
               role === 'Student' ? (
@@ -384,8 +387,9 @@ export default function App() {
               />
             )}
           </>
-        )}
-      </div>
+          )}
+        </div>
+      </Suspense>
 
       {/* 3. DYNAMIC TOAST OUTLETS */}
       <Toast toasts={toastNotificationsList} onClose={dismissToastNotification} />
