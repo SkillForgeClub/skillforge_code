@@ -72,6 +72,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
       return;
     }
 
+    if (material.sourceType === 'pdf' && targetUrl.startsWith('data:application/pdf')) {
+      const payload = targetUrl.split(',')[1] || '';
+      const mimeString = targetUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/pdf';
+      const byteString = atob(payload);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i += 1) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      const objectUrl = URL.createObjectURL(blob);
+      const newTab = window.open('', '_blank', 'noopener,noreferrer');
+      if (newTab) {
+        newTab.location.href = objectUrl;
+      } else {
+        window.location.href = objectUrl;
+      }
+      return;
+    }
+
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
   };
 

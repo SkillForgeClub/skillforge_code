@@ -292,7 +292,29 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
                     type="button"
                     onClick={() => {
                       const target = material.sourceType === 'pdf' ? material.pdfDataUrl || material.url : material.url;
-                      if (target && target !== '#') window.open(target, '_blank', 'noopener,noreferrer');
+                      if (!target || target === '#') return;
+
+                      if (material.sourceType === 'pdf' && target.startsWith('data:application/pdf')) {
+                        const payload = target.split(',')[1] || '';
+                        const mimeString = target.split(',')[0].split(':')[1].split(';')[0] || 'application/pdf';
+                        const byteString = atob(payload);
+                        const ab = new ArrayBuffer(byteString.length);
+                        const ia = new Uint8Array(ab);
+                        for (let i = 0; i < byteString.length; i += 1) {
+                          ia[i] = byteString.charCodeAt(i);
+                        }
+                        const blob = new Blob([ab], { type: mimeString });
+                        const objectUrl = URL.createObjectURL(blob);
+                        const newTab = window.open('', '_blank', 'noopener,noreferrer');
+                        if (newTab) {
+                          newTab.location.href = objectUrl;
+                        } else {
+                          window.location.href = objectUrl;
+                        }
+                        return;
+                      }
+
+                      window.open(target, '_blank', 'noopener,noreferrer');
                     }}
                     className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white"
                   >
