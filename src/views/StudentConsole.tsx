@@ -20,9 +20,9 @@ import {
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import { Student, Submission, Quiz, CodingProblem, STAR_THRESHOLDS } from '../types';
+import { Student, Submission, Quiz, CodingProblem, STAR_THRESHOLDS, StudyMaterial } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { submissionsApi, quizzesApi, problemsApi, ApiError } from '../services/api';
+import { submissionsApi, quizzesApi, problemsApi, ApiError, studyMaterialsApi } from '../services/api';
 
 interface StudentConsoleProps {
   onNavigate: (view: string) => void;
@@ -198,6 +198,8 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
   const [submissionsLog, setSubmissionsLog] = useState<Submission[]>([]);
   const [problemsCatalog, setProblemsCatalog] = useState<CodingProblem[]>([]);
   const [quizzesCatalog, setQuizzesCatalog] = useState<Quiz[]>([]);
+  const [studyMaterialsList, setStudyMaterialsList] = useState<StudyMaterial[]>([]);
+  const isMaterialsView = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'materials';
 
   useEffect(() => {
     refreshStudent();
@@ -207,6 +209,7 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
     });
     quizzesApi.list().then(setQuizzesCatalog).catch(() => {});
     problemsApi.list().then(setProblemsCatalog).catch(() => {});
+    studyMaterialsApi.list().then(setStudyMaterialsList).catch(() => setStudyMaterialsList([]));
   }, []);
   
   const [studentNotificationsList, setStudentNotificationsList] = useState<{ id: string; text: string; type: string; time: string; read: boolean }[]>([]);
@@ -249,6 +252,61 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
     }
     return days;
   })();
+
+  if (isMaterialsView) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 bg-zinc-50 dark:bg-[#0a0a0a] transition-colors min-h-screen">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-indigo-600 dark:text-indigo-400">Student Materials</p>
+            <h2 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">Downloadable Notes</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate('student-dashboard')}
+            className="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#141414] text-xs font-bold text-zinc-700 dark:text-zinc-300"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {studyMaterialsList.length === 0 ? (
+            <div className="md:col-span-2 xl:col-span-3 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#141414] p-10 text-center">
+              <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">No materials available yet.</p>
+              <p className="text-xs text-zinc-500 mt-1">Your instructor or admin can upload notes here.</p>
+            </div>
+          ) : (
+            studyMaterialsList.map((material) => (
+              <article key={material.id} className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#141414] p-5 shadow-sm">
+                <div className={`flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br ${material.accent} text-xl font-black text-white shadow-inner`}>
+                  {material.logoText.length > 2 ? material.logoText.slice(0, 2).toUpperCase() : material.logoText.toUpperCase()}
+                </div>
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-xl font-black text-zinc-900 dark:text-white">{material.title}</h3>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">{material.description}</p>
+                </div>
+                <div className="mt-4 flex items-center justify-between border-t border-zinc-200 dark:border-zinc-800 pt-4">
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">{material.fileCount} file{material.fileCount > 1 ? 's' : ''}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = material.sourceType === 'pdf' ? material.pdfDataUrl || material.url : material.url;
+                      if (target && target !== '#') window.open(target, '_blank', 'noopener,noreferrer');
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {material.sourceType === 'pdf' ? 'Open PDF' : 'Open Link'}
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 bg-zinc-50 dark:bg-[#0a0a0a] transition-colors min-h-screen">
