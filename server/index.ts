@@ -66,6 +66,24 @@ function todayUtc() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const apiCache = new Map<string, { expiresAt: number; value: any }>();
+
+async function getCachedValue<T>(cacheKey: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
+  const now = Date.now();
+  const cached = apiCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.value as T;
+  }
+
+  const value = await loader();
+  apiCache.set(cacheKey, { expiresAt: now + ttlMs, value });
+  return value;
+}
+
+function invalidateCache(...keys: string[]) {
+  keys.forEach((key) => apiCache.delete(key));
+}
+
 function currentStreak(row: any) {
   const today = todayUtc();
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -112,9 +130,12 @@ async function toProblemSummary(row: any, studentId?: string) {
       if (attempted) status = 'Attempted';
     }
   }
-  const attempts = row.attempt_count || 0;
-  const acceptanceRate = attempts > 0 ? Math.round((row.solved_count / attempts) * 1000) / 10 : 0;
-  const testCaseCount = row.test_case_count ?? (await db.prepare(`SELECT COUNT(*)::int c FROM test_cases WHERE problem_id=?`).get(row.id)).c;
+
+  const attempts = Number(row.attempt_count ?? row.attempts ?? 0);
+  const solvedCount = Number(row.solved_count ?? 0);
+  const acceptanceRate = attempts > 0 ? Math.round((solvedCount / attempts) * 1000) / 10 : 0;
+  const testCaseCount = Number(row.test_case_count ?? 0);
+
   return {
     id: row.id,
     title: row.title,
@@ -126,15 +147,22 @@ async function toProblemSummary(row: any, studentId?: string) {
     constraints: row.constraints,
     examples: JSON.parse(row.examples || '[]'),
     starterTemplates: JSON.parse(row.starter_templates || '{}'),
-    solvedCount: row.solved_count,
+    solvedCount,
     acceptanceRate,
     status,
     testCaseCount,
   };
 }
 
+const testCaseCache = new Map<string, Promise<any[]>>();
+
 async function getTestCases(problemId: string) {
-  return db.prepare(`SELECT * FROM test_cases WHERE problem_id=? ORDER BY ord ASC`).all(problemId);
+  const cached = testCaseCache.get(problemId);
+  if (cached) return cached;
+
+  const promise = db.prepare(`SELECT * FROM test_cases WHERE problem_id=? ORDER BY ord ASC`).all(problemId);
+  testCaseCache.set(problemId, promise);
+  return promise;
 }
 
 async function toProblemFull(row: any, studentId: string | undefined, includeHidden: boolean) {
@@ -344,27 +372,34 @@ app.post('/api/auth/reset-password', async (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.get('/api/problems', optionalAuth, async (req: AuthedRequest, res) => {
-  const rows = await db.prepare(`
-    SELECT p.*,
-      (SELECT COUNT(*)::int FROM test_cases tc WHERE tc.problem_id = p.id) AS test_case_count,
-      CASE
-        WHEN CAST(? AS TEXT) IS NULL THEN 'Unsolved'
-        WHEN EXISTS (
-          SELECT 1 FROM submissions s
-          WHERE s.user_id = ? AND s.problem_id = p.id AND s.status = 'Accepted'
-        ) THEN 'Solved'
-        WHEN EXISTS (
-          SELECT 1 FROM submissions s
-          WHERE s.user_id = ? AND s.problem_id = p.id
-        ) THEN 'Attempted'
-        ELSE 'Unsolved'
-      END AS problem_status
-    FROM problems p
-    WHERE p.contest_only = 0
-    ORDER BY p.created_at ASC
-  `).all(req.user?.role === 'student' ? req.user.id : null, req.user?.role === 'student' ? req.user.id : null, req.user?.role === 'student' ? req.user.id : null);
-  const studentId = req.user?.role === 'student' ? req.user.id : undefined;
-  res.json(await Promise.all(rows.map((r: any) => toProblemSummary(r, studentId))));
+  const studentId = req.user?.role === 'student' ? req.user.id : 'guest';
+  const rows = await getCachedValue(
+    `problems:${studentId}`,
+    30000,
+    async () => db.prepare(`
+      SELECT p.*,
+        COALESCE((SELECT COUNT(*)::int FROM test_cases tc WHERE tc.problem_id = p.id), 0) AS test_case_count,
+        COALESCE((SELECT COUNT(*)::int FROM submissions s WHERE s.problem_id = p.id), 0) AS attempt_count,
+        COALESCE((SELECT COUNT(*)::int FROM submissions s WHERE s.problem_id = p.id AND s.status = 'Accepted'), 0) AS solved_count,
+        CASE
+          WHEN ? = 'guest' THEN 'Unsolved'
+          WHEN EXISTS (
+            SELECT 1 FROM submissions s
+            WHERE s.user_id = ? AND s.problem_id = p.id AND s.status = 'Accepted'
+          ) THEN 'Solved'
+          WHEN EXISTS (
+            SELECT 1 FROM submissions s
+            WHERE s.user_id = ? AND s.problem_id = p.id
+          ) THEN 'Attempted'
+          ELSE 'Unsolved'
+        END AS problem_status
+      FROM problems p
+      WHERE p.contest_only = 0
+      ORDER BY p.created_at ASC
+    `).all(studentId, studentId, studentId)
+  );
+
+  res.json(await Promise.all(rows.map((r: any) => toProblemSummary(r, studentId === 'guest' ? undefined : studentId))));
 });
 
 app.get('/api/problems/:id', optionalAuth, async (req: AuthedRequest, res) => {
@@ -719,7 +754,7 @@ app.get('/api/submissions/:id', requireAuth, async (req: AuthedRequest, res) => 
 // ---------------------------------------------------------------------------
 
 app.get('/api/quizzes', optionalAuth, async (req, res) => {
-  const rows = await db.prepare(`SELECT * FROM quizzes ORDER BY start_time DESC`).all();
+  const rows = await getCachedValue('quizzes:list', 30000, async () => db.prepare(`SELECT * FROM quizzes ORDER BY start_time DESC`).all());
   res.json(await Promise.all(rows.map((r: any) => toQuizSummary(r))));
 });
 
@@ -849,11 +884,12 @@ app.post('/api/quizzes/:id/submit', requireAuth, async (req: AuthedRequest, res)
 // ---------------------------------------------------------------------------
 
 app.get('/api/leaderboard', async (_req, res) => {
-  const rows = await db.prepare(`
+  const rows = await getCachedValue('leaderboard:list', 30000, async () => db.prepare(`
     SELECT id, full_name, roll_number, star_rating, streak, last_solved_date, points, easy_solved, medium_solved, hard_solved
     FROM users WHERE role='student'
     ORDER BY points DESC, (easy_solved + medium_solved + hard_solved) DESC
-  `).all();
+  `).all());
+
   res.json(rows.map((r: any, idx: number) => ({
     rank: idx + 1,
     studentId: r.id,
@@ -871,15 +907,15 @@ app.get('/api/leaderboard', async (_req, res) => {
 // ---------------------------------------------------------------------------
 
 app.get('/api/materials', async (_req, res) => {
-  const rows = await db.prepare(`
+  const rows = await getCachedValue('materials:list', 30000, async () => db.prepare(`
     SELECT * FROM study_materials
     ORDER BY created_at DESC
-  `).all();
+  `).all());
   res.json(rows.map(toStudyMaterial));
 });
 
 app.get('/api/admin/materials', requireAuth, requireAdmin, async (_req, res) => {
-  const rows = await db.prepare(`SELECT * FROM study_materials ORDER BY created_at DESC`).all();
+  const rows = await getCachedValue('admin:materials:list', 30000, async () => db.prepare(`SELECT * FROM study_materials ORDER BY created_at DESC`).all());
   res.json(rows.map(toStudyMaterial));
 });
 
