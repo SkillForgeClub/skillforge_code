@@ -105,6 +105,7 @@ export default function App() {
       leaderboard: '/leaderboard',
       contests: '/contests',
       'contest-room': '/contest-room',
+      materials: '/student',
     };
 
     setActiveViewRoute(view);

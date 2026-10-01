@@ -51,6 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'problems', label: 'Problems', icon: FileCodeIcon, roles: ['Student', 'Admin'] },
     { id: 'quizzes', label: 'Quizzes', icon: Award, roles: ['Student', 'Admin'] },
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['Guest', 'Student', 'Admin'] },
+    { id: 'materials', label: 'Materials', icon: BookOpen, roles: ['Student'] },
   ];
 
   function FileCodeIcon(props: any) {

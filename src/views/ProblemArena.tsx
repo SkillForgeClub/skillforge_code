@@ -17,6 +17,7 @@ import { CodingProblem, Difficulty, ProgrammingLanguage } from '../types';
 import { CodeEditor } from '../components/CodeEditor';
 import { problemsApi, ApiError } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { INITIAL_PROBLEMS } from '../data/mockData';
 
 interface ProblemArenaProps {
   onNavigate: (view: string) => void;
@@ -37,11 +38,18 @@ export const ProblemArena: React.FC<ProblemArenaProps> = ({
   const [isLoadingActiveProblem, setIsLoadingActiveProblem] = useState(false);
   const [editorLanguage, setEditorLanguage] = useState<ProgrammingLanguage>('Python');
 
+  const normalizeCategory = (value: string) =>
+    value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
   useEffect(() => {
     problemsApi
       .list()
-      .then(setCodingProblemsList)
+      .then((problems) => {
+        const nextProblems = problems.length > 0 ? problems : INITIAL_PROBLEMS;
+        setCodingProblemsList(nextProblems);
+      })
       .catch((err) => {
+        setCodingProblemsList(INITIAL_PROBLEMS);
         const message = err instanceof ApiError ? err.message : 'Could not load the problem bank.';
         addToast('Failed to Load Problems', 'error', message);
       })
@@ -58,16 +66,19 @@ export const ProblemArena: React.FC<ProblemArenaProps> = ({
   const [problemsCurrentPage, setProblemsCurrentPage] = useState(1);
   const itemsPerPageLimit = 4;
 
-  const problemCategories = ['All', 'Arrays & Hashing', 'Strings', 'Two Pointers', 'Binary Search'];
+  const problemCategories = ['All', ...Array.from(
+    new Set(codingProblemsList.map((prob) => prob.category).filter(Boolean))
+  )];
 
   // Handle filtrations
   const filteredProblemsList = codingProblemsList.filter((prob) => {
     const matchesSearch = prob.title.toLowerCase().includes(searchFilterQuery.toLowerCase()) ||
                           prob.category.toLowerCase().includes(searchFilterQuery.toLowerCase()) ||
                           prob.statement.toLowerCase().includes(searchFilterQuery.toLowerCase());
-    
+
     const matchesDifficulty = selectedDifficulty === 'All' || prob.difficulty === selectedDifficulty;
-    const matchesCategory = selectedCategory === 'All' || prob.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'All' ||
+      normalizeCategory(prob.category) === normalizeCategory(selectedCategory);
     const matchesStatus = selectedStatus === 'All' || 
                           (selectedStatus === 'Solved' && prob.status === 'Solved') ||
                           (selectedStatus === 'Attempted' && prob.status === 'Attempted') ||
