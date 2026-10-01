@@ -166,7 +166,10 @@ export interface StudyMaterial {
   fileCount: number;
   logoText: string;
   accent: string;
+  sourceType: 'link' | 'pdf';
   url: string;
+  pdfFileName?: string;
+  pdfDataUrl?: string;
 }
 
 export const STUDY_MATERIALS_STORAGE_KEY = 'skillforge-study-materials-v1';
@@ -180,6 +183,7 @@ export const DEFAULT_STUDY_MATERIALS: StudyMaterial[] = [
     fileCount: 1,
     logoText: 'Flipkart',
     accent: 'from-[#ffde59] via-[#facc15] to-[#f59e0b]',
+    sourceType: 'link',
     url: '#',
   },
   {
@@ -190,6 +194,7 @@ export const DEFAULT_STUDY_MATERIALS: StudyMaterial[] = [
     fileCount: 4,
     logoText: 'CS',
     accent: 'from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd]',
+    sourceType: 'link',
     url: '#',
   },
   {
@@ -200,6 +205,7 @@ export const DEFAULT_STUDY_MATERIALS: StudyMaterial[] = [
     fileCount: 8,
     logoText: 'Python',
     accent: 'from-[#1f2937] via-[#0f172a] to-[#334155]',
+    sourceType: 'link',
     url: '#',
   },
   {
@@ -210,6 +216,7 @@ export const DEFAULT_STUDY_MATERIALS: StudyMaterial[] = [
     fileCount: 6,
     logoText: 'JavaScript',
     accent: 'from-[#facc15] via-[#fbbf24] to-[#f59e0b]',
+    sourceType: 'link',
     url: '#',
   },
 ];

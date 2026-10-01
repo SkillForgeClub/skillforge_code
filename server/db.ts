@@ -142,6 +142,21 @@ CREATE TABLE IF NOT EXISTS quizzes (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS study_materials (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  file_count INTEGER NOT NULL DEFAULT 1,
+  logo_text TEXT NOT NULL DEFAULT '',
+  accent TEXT NOT NULL DEFAULT 'from-indigo-500 via-blue-500 to-cyan-500',
+  source_type TEXT NOT NULL DEFAULT 'link' CHECK (source_type IN ('link','pdf')),
+  url TEXT NOT NULL DEFAULT '#',
+  pdf_file_name TEXT,
+  pdf_data_url TEXT,
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS quiz_questions (
   id TEXT PRIMARY KEY,
   quiz_id TEXT NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
@@ -205,6 +220,7 @@ CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status);
 CREATE INDEX IF NOT EXISTS idx_submissions_created ON submissions(submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_testcases_problem ON test_cases(problem_id);
 CREATE INDEX IF NOT EXISTS idx_quizquestions_quiz ON quiz_questions(quiz_id);
+CREATE INDEX IF NOT EXISTS idx_study_materials_created ON study_materials(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_contestproblems_contest ON contest_problems(contest_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);

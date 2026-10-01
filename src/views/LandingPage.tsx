@@ -22,35 +22,29 @@ import {
   Search,
   Download
 } from 'lucide-react';
-import { Quiz, LeaderboardEntry, StudyMaterial, DEFAULT_STUDY_MATERIALS, STUDY_MATERIALS_STORAGE_KEY } from '../types';
-import { quizzesApi, leaderboardApi, problemsApi } from '../services/api';
+import { Quiz, LeaderboardEntry, StudyMaterial, DEFAULT_STUDY_MATERIALS } from '../types';
+import { quizzesApi, leaderboardApi, problemsApi, studyMaterialsApi } from '../services/api';
 
 interface LandingPageProps {
   onNavigate: (view: string) => void;
   onSelectRole?: (role: 'Student' | 'Admin') => void;
 }
 
-const readStudyMaterials = (): StudyMaterial[] => {
-  if (typeof window === 'undefined') return DEFAULT_STUDY_MATERIALS;
-
-  try {
-    const raw = window.localStorage.getItem(STUDY_MATERIALS_STORAGE_KEY);
-    if (!raw) return DEFAULT_STUDY_MATERIALS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_STUDY_MATERIALS;
-  } catch {
-    return DEFAULT_STUDY_MATERIALS;
-  }
-};
-
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRole }) => {
   const [previewQuizzes, setPreviewQuizzes] = useState<Quiz[]>([]);
   const [previewLeaderboard, setPreviewLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [stats, setStats] = useState({ problems: 0 });
-  const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(readStudyMaterials);
+  const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(DEFAULT_STUDY_MATERIALS);
 
   useEffect(() => {
-    const syncStudyMaterials = () => setStudyMaterials(readStudyMaterials());
+    const syncStudyMaterials = async () => {
+      try {
+        const materials = await studyMaterialsApi.list();
+        if (materials.length > 0) setStudyMaterials(materials);
+      } catch {
+        setStudyMaterials(DEFAULT_STUDY_MATERIALS);
+      }
+    };
 
     quizzesApi.list().then((all) => {
       const live = all.filter(q => q.status === 'Live');
@@ -62,9 +56,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
     }).catch(() => {});
 
     syncStudyMaterials();
-    window.addEventListener('skillforge-study-materials-sync', syncStudyMaterials);
-
-    return () => window.removeEventListener('skillforge-study-materials-sync', syncStudyMaterials);
   }, []);
 
   const navigateToProblemArena = () => {
@@ -72,6 +63,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
       onSelectRole('Student');
     }
     onNavigate('problems');
+  };
+
+  const openStudyMaterial = (material: StudyMaterial) => {
+    const targetUrl = material.sourceType === 'pdf' ? material.pdfDataUrl || material.url : material.url;
+
+    if (!targetUrl || targetUrl === '#') {
+      return;
+    }
+
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -213,10 +214,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
                   </div>
                   <button
                     type="button"
-                    onClick={() => window.open(material.url, '_blank', 'noopener,noreferrer')}
+                    onClick={() => openStudyMaterial(material)}
                     className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 transition hover:text-indigo-500 dark:text-indigo-400"
                   >
-                    <span>View Files</span>
+                    <span>{material.sourceType === 'pdf' ? 'Open PDF' : 'View Files'}</span>
                     <Download className="h-4 w-4" />
                   </button>
                 </div>

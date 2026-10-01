@@ -26,8 +26,8 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Sidebar, AdminTab } from '../components/Sidebar';
-import { CodingProblem, Quiz, Difficulty, QuizQuestion, Student, StudyMaterial, DEFAULT_STUDY_MATERIALS, STUDY_MATERIALS_STORAGE_KEY } from '../types';
-import { adminApi, problemsApi, quizzesApi, leaderboardApi, contestsApi, ApiError, BulkImportResult } from '../services/api';
+import { CodingProblem, Quiz, Difficulty, QuizQuestion, Student, StudyMaterial, DEFAULT_STUDY_MATERIALS } from '../types';
+import { adminApi, problemsApi, quizzesApi, leaderboardApi, contestsApi, ApiError, BulkImportResult, studyMaterialsApi } from '../services/api';
 import { Contest } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -60,19 +60,6 @@ const quizFormSchema = z.object({
 type QuizFormValues = z.infer<typeof quizFormSchema>;
 type QuizQuestionValues = z.infer<typeof quizQuestionSchema>;
 
-const readStoredStudyMaterials = (): StudyMaterial[] => {
-  if (typeof window === 'undefined') return DEFAULT_STUDY_MATERIALS;
-
-  try {
-    const raw = window.localStorage.getItem(STUDY_MATERIALS_STORAGE_KEY);
-    if (!raw) return DEFAULT_STUDY_MATERIALS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_STUDY_MATERIALS;
-  } catch {
-    return DEFAULT_STUDY_MATERIALS;
-  }
-};
-
 export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
   onNavigate,
   addToast
@@ -94,7 +81,7 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
     problems: { problemId: string; label: string; points: number }[];
   }>({ title: '', description: '', startTime: '', endTime: '', problems: [] });
   const [leaderboardEntries, setLeaderboardEntries] = useState<any[]>([]);
-  const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(readStoredStudyMaterials);
+  const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(DEFAULT_STUDY_MATERIALS);
   const [studyMaterialForm, setStudyMaterialForm] = useState({
     id: '',
     title: '',
@@ -103,7 +90,10 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
     fileCount: 1,
     logoText: '',
     accent: 'from-indigo-500 via-blue-500 to-cyan-500',
+    sourceType: 'link' as 'link' | 'pdf',
     url: '#',
+    pdfFileName: '',
+    pdfDataUrl: '',
   });
   const [recentSubmissionLogs, setRecentSubmissionLogs] = useState<Array<{
     id: string; studentName: string; problemTitle: string; language: string; status: string; submittedAt: string;
@@ -140,18 +130,13 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
       leaderboardApi.list().then(setLeaderboardEntries).catch(() => {});
       adminApi.stats().then(setAdminStats).catch(() => {});
       adminApi.recentSubmissions().then(setRecentSubmissionLogs).catch(() => setRecentSubmissionLogs([]));
+      studyMaterialsApi.adminList().then(setStudyMaterials).catch(() => setStudyMaterials(DEFAULT_STUDY_MATERIALS));
     };
 
-    const syncStudyMaterials = () => setStudyMaterials(readStoredStudyMaterials());
     refreshDashboardData();
-    syncStudyMaterials();
     const refreshInterval = window.setInterval(refreshDashboardData, 15000);
-    window.addEventListener('skillforge-study-materials-sync', syncStudyMaterials);
 
-    return () => {
-      window.clearInterval(refreshInterval);
-      window.removeEventListener('skillforge-study-materials-sync', syncStudyMaterials);
-    };
+    return () => window.clearInterval(refreshInterval);
   }, []);
   
   // Search states
@@ -291,13 +276,40 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
     }
   };
 
-  const persistStudyMaterials = (nextMaterials: StudyMaterial[]) => {
+  const persistStudyMaterials = async (nextMaterials: StudyMaterial[]) => {
     setStudyMaterials(nextMaterials);
-    window.localStorage.setItem(STUDY_MATERIALS_STORAGE_KEY, JSON.stringify(nextMaterials));
-    window.dispatchEvent(new Event('skillforge-study-materials-sync'));
+    try {
+      await studyMaterialsApi.adminList();
+    } catch {
+      // ignore, fallback already handled by API calls below
+    }
   };
 
-  const handleStudyMaterialSubmit = (event: React.FormEvent) => {
+  const handleStudyMaterialFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      addToast('Invalid PDF', 'warning', 'Please upload a PDF file only.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      setStudyMaterialForm((prev) => ({
+        ...prev,
+        sourceType: 'pdf',
+        pdfFileName: file.name,
+        pdfDataUrl: result,
+        url: result || prev.url,
+      }));
+      addToast('PDF Ready', 'success', `${file.name} is prepared for upload.`);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleStudyMaterialSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     if (!studyMaterialForm.title.trim() || !studyMaterialForm.category.trim() || !studyMaterialForm.description.trim()) {
@@ -305,40 +317,42 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
       return;
     }
 
-    const material: StudyMaterial = {
-      id: studyMaterialForm.id || `material-${Date.now()}`,
-      title: studyMaterialForm.title.trim(),
-      category: studyMaterialForm.category.trim(),
-      description: studyMaterialForm.description.trim(),
-      fileCount: Math.max(1, Number(studyMaterialForm.fileCount) || 1),
-      logoText: studyMaterialForm.logoText.trim() || studyMaterialForm.title.trim().slice(0, 2).toUpperCase(),
-      accent: studyMaterialForm.accent,
-      url: studyMaterialForm.url.trim() || '#',
-    };
+    if (studyMaterialForm.sourceType === 'pdf' && !studyMaterialForm.pdfDataUrl) {
+      addToast('PDF Required', 'warning', 'Please upload a PDF file or choose a link source.');
+      return;
+    }
 
-    const nextMaterials = studyMaterialForm.id
-      ? studyMaterials.map((entry) => (entry.id === studyMaterialForm.id ? material : entry))
-      : [material, ...studyMaterials];
+    if (studyMaterialForm.sourceType === 'link' && (!studyMaterialForm.url.trim() || studyMaterialForm.url.trim() === '#')) {
+      addToast('Link Required', 'warning', 'Please enter a valid external link or switch to PDF upload.');
+      return;
+    }
 
-    persistStudyMaterials(nextMaterials);
-    setStudyMaterialForm({
-      id: '',
-      title: '',
-      category: '',
-      description: '',
-      fileCount: 1,
-      logoText: '',
-      accent: 'from-indigo-500 via-blue-500 to-cyan-500',
-      url: '#',
-    });
-    addToast('Study Material Saved', 'success', `${material.title} is now visible on the landing page.`);
-  };
+    try {
+      const payload = {
+        id: studyMaterialForm.id || undefined,
+        title: studyMaterialForm.title.trim(),
+        category: studyMaterialForm.category.trim(),
+        description: studyMaterialForm.description.trim(),
+        fileCount: Math.max(1, Number(studyMaterialForm.fileCount) || 1),
+        logoText: studyMaterialForm.logoText.trim() || studyMaterialForm.title.trim().slice(0, 2).toUpperCase(),
+        accent: studyMaterialForm.accent,
+        sourceType: studyMaterialForm.sourceType,
+        url: studyMaterialForm.sourceType === 'pdf' ? (studyMaterialForm.pdfDataUrl || '#') : studyMaterialForm.url.trim(),
+        pdfFileName: studyMaterialForm.pdfFileName,
+        pdfDataUrl: studyMaterialForm.sourceType === 'pdf' ? studyMaterialForm.pdfDataUrl : undefined,
+      };
 
-  const handleStudyMaterialDelete = (id: string) => {
-    const material = studyMaterials.find((entry) => entry.id === id);
-    const nextMaterials = studyMaterials.filter((entry) => entry.id !== id);
-    persistStudyMaterials(nextMaterials);
-    if (studyMaterialForm.id === id) {
+      const saved = studyMaterialForm.id
+        ? await studyMaterialsApi.update(studyMaterialForm.id, payload)
+        : await studyMaterialsApi.create(payload);
+
+      setStudyMaterials((prev) => {
+        if (studyMaterialForm.id) {
+          return prev.map((entry) => (entry.id === saved.id ? saved : entry));
+        }
+        return [saved, ...prev];
+      });
+
       setStudyMaterialForm({
         id: '',
         title: '',
@@ -347,10 +361,41 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
         fileCount: 1,
         logoText: '',
         accent: 'from-indigo-500 via-blue-500 to-cyan-500',
+        sourceType: 'link',
         url: '#',
+        pdfFileName: '',
+        pdfDataUrl: '',
       });
+      addToast('Study Material Saved', 'success', `${saved.title} is now visible on the landing page.`);
+    } catch (err) {
+      addToast('Save Failed', 'error', err instanceof ApiError ? err.message : 'Could not save study material.');
     }
-    addToast('Study Material Removed', 'warning', material ? `Removed ${material.title}.` : 'Resource removed.');
+  };
+
+  const handleStudyMaterialDelete = async (id: string) => {
+    const material = studyMaterials.find((entry) => entry.id === id);
+    try {
+      await studyMaterialsApi.remove(id);
+      setStudyMaterials((prev) => prev.filter((entry) => entry.id !== id));
+      if (studyMaterialForm.id === id) {
+        setStudyMaterialForm({
+          id: '',
+          title: '',
+          category: '',
+          description: '',
+          fileCount: 1,
+          logoText: '',
+          accent: 'from-indigo-500 via-blue-500 to-cyan-500',
+          sourceType: 'link',
+          url: '#',
+          pdfFileName: '',
+          pdfDataUrl: '',
+        });
+      }
+      addToast('Study Material Removed', 'warning', material ? `Removed ${material.title}.` : 'Resource removed.');
+    } catch (err) {
+      addToast('Delete Failed', 'error', err instanceof ApiError ? err.message : 'Could not delete material.');
+    }
   };
 
   // 1. Actions: Student Manager
@@ -1912,14 +1957,41 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
                 </div>
 
                 <div className="space-y-1 md:col-span-2">
-                  <label className="text-[10px] font-bold uppercase text-zinc-400">Download / View URL</label>
-                  <input
-                    value={studyMaterialForm.url}
-                    onChange={(e) => setStudyMaterialForm((prev) => ({ ...prev, url: e.target.value }))}
-                    placeholder="https://example.com/notes"
+                  <label className="text-[10px] font-bold uppercase text-zinc-400">Source Type</label>
+                  <select
+                    value={studyMaterialForm.sourceType}
+                    onChange={(e) => setStudyMaterialForm((prev) => ({ ...prev, sourceType: e.target.value as 'link' | 'pdf', url: e.target.value === 'pdf' ? prev.url : prev.url }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
-                  />
+                  >
+                    <option value="link">External Link</option>
+                    <option value="pdf">Upload PDF</option>
+                  </select>
                 </div>
+
+                {studyMaterialForm.sourceType === 'pdf' ? (
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-[10px] font-bold uppercase text-zinc-400">Upload PDF</label>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={handleStudyMaterialFileUpload}
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3 file:py-1.5 file:text-white file:text-[10px] file:font-bold"
+                    />
+                    {studyMaterialForm.pdfFileName && (
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Selected file: {studyMaterialForm.pdfFileName}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-[10px] font-bold uppercase text-zinc-400">Download / View URL</label>
+                    <input
+                      value={studyMaterialForm.url}
+                      onChange={(e) => setStudyMaterialForm((prev) => ({ ...prev, url: e.target.value }))}
+                      placeholder="https://example.com/notes"
+                      className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-3">
@@ -1966,7 +2038,19 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setStudyMaterialForm({ ...material })}
+                        onClick={() => setStudyMaterialForm({
+                          id: material.id,
+                          title: material.title,
+                          category: material.category,
+                          description: material.description,
+                          fileCount: material.fileCount,
+                          logoText: material.logoText,
+                          accent: material.accent,
+                          sourceType: material.sourceType,
+                          url: material.url,
+                          pdfFileName: material.pdfFileName || '',
+                          pdfDataUrl: material.pdfDataUrl || '',
+                        })}
                         className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold cursor-pointer"
                       >
                         Edit

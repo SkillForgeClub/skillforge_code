@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CodingProblem, Quiz, Student, LeaderboardEntry, Submission, ProgrammingLanguage, Contest, ContestStandingEntry } from '../types';
+import { CodingProblem, Quiz, Student, LeaderboardEntry, Submission, ProgrammingLanguage, Contest, ContestStandingEntry, StudyMaterial } from '../types';
 
 const TOKEN_KEY = 'skillforge_token';
 
@@ -269,6 +269,16 @@ export const adminApi = {
     status: string;
     submittedAt: string;
   }>>('/admin/recent-submissions'),
+};
+
+export const studyMaterialsApi = {
+  list: () => request<StudyMaterial[]>('/materials'),
+  adminList: () => request<StudyMaterial[]>('/admin/materials'),
+  create: (data: Partial<StudyMaterial>) =>
+    request<StudyMaterial>('/admin/materials', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<StudyMaterial>) =>
+    request<StudyMaterial>(`/admin/materials/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id: string) => request<{ success: boolean }>(`/admin/materials/${id}`, { method: 'DELETE' }),
 };
 
 // ---------------------------------------------------------------------------

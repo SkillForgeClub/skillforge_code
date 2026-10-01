@@ -186,6 +186,22 @@ async function toQuizFull(row: any) {
   return { ...(await toQuizSummary(row)), questions: questionDtos };
 }
 
+function toStudyMaterial(row: any) {
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    description: row.description,
+    fileCount: row.file_count,
+    logoText: row.logo_text,
+    accent: row.accent,
+    sourceType: row.source_type,
+    url: row.url,
+    pdfFileName: row.pdf_file_name || undefined,
+    pdfDataUrl: row.pdf_data_url || undefined,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Auth routes
 // ---------------------------------------------------------------------------
@@ -848,6 +864,114 @@ app.get('/api/leaderboard', async (_req, res) => {
     streak: currentStreak(r),
     starRating: r.star_rating,
   })));
+});
+
+// ---------------------------------------------------------------------------
+// Study materials
+// ---------------------------------------------------------------------------
+
+app.get('/api/materials', async (_req, res) => {
+  const rows = await db.prepare(`
+    SELECT * FROM study_materials
+    ORDER BY created_at DESC
+  `).all();
+  res.json(rows.map(toStudyMaterial));
+});
+
+app.get('/api/admin/materials', requireAuth, requireAdmin, async (_req, res) => {
+  const rows = await db.prepare(`SELECT * FROM study_materials ORDER BY created_at DESC`).all();
+  res.json(rows.map(toStudyMaterial));
+});
+
+app.post('/api/admin/materials', requireAuth, requireAdmin, async (req, res) => {
+  const b = req.body || {};
+  const title = String(b.title || '').trim();
+  const category = String(b.category || '').trim();
+  const description = String(b.description || '').trim();
+  const sourceType = b.sourceType === 'pdf' ? 'pdf' : 'link';
+
+  if (!title || !category || !description) {
+    return res.status(400).json({ error: 'Title, category, and description are required.' });
+  }
+
+  if (sourceType === 'pdf' && !b.pdfDataUrl) {
+    return res.status(400).json({ error: 'A PDF file is required when source type is PDF.' });
+  }
+
+  if (sourceType === 'link' && (!b.url || String(b.url).trim() === '#' || !/^https?:\/\//i.test(String(b.url).trim()))) {
+    return res.status(400).json({ error: 'Please enter a valid external URL starting with http:// or https://.' });
+  }
+
+  const materialId = String(b.id || newId('mat'));
+  const payload = {
+    id: materialId,
+    title,
+    category,
+    description,
+    fileCount: Number(b.fileCount) > 0 ? Number(b.fileCount) : 1,
+    logoText: String(b.logoText || title.slice(0, 2).toUpperCase()),
+    accent: String(b.accent || 'from-indigo-500 via-blue-500 to-cyan-500'),
+    sourceType,
+    url: sourceType === 'pdf' ? String(b.pdfDataUrl || '#') : String(b.url || '#'),
+    pdfFileName: sourceType === 'pdf' ? String(b.pdfFileName || 'document.pdf') : null,
+    pdfDataUrl: sourceType === 'pdf' ? String(b.pdfDataUrl || '') : null,
+  };
+
+  await db.prepare(`
+    INSERT INTO study_materials (id, title, category, description, file_count, logo_text, accent, source_type, url, pdf_file_name, pdf_data_url, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    payload.id, payload.title, payload.category, payload.description, payload.fileCount,
+    payload.logoText, payload.accent, payload.sourceType, payload.url, payload.pdfFileName,
+    payload.pdfDataUrl, nowIso()
+  );
+
+  const row = await db.prepare(`SELECT * FROM study_materials WHERE id=?`).get(payload.id);
+  res.status(201).json(toStudyMaterial(row));
+});
+
+app.put('/api/admin/materials/:id', requireAuth, requireAdmin, async (req, res) => {
+  const existing = await db.prepare(`SELECT * FROM study_materials WHERE id=?`).get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Study material not found.' });
+
+  const b = req.body || {};
+  const title = String(b.title ?? existing.title).trim();
+  const category = String(b.category ?? existing.category).trim();
+  const description = String(b.description ?? existing.description).trim();
+  const sourceType = b.sourceType === 'pdf' || existing.source_type === 'pdf' && !b.sourceType ? 'pdf' : 'link';
+
+  if (!title || !category || !description) {
+    return res.status(400).json({ error: 'Title, category, and description are required.' });
+  }
+
+  const nextUrl = sourceType === 'pdf' ? String(b.pdfDataUrl ?? existing.pdf_data_url ?? '#') : String(b.url ?? existing.url ?? '#');
+  if (sourceType === 'link' && (!nextUrl || nextUrl === '#' || !/^https?:\/\//i.test(nextUrl))) {
+    return res.status(400).json({ error: 'Please enter a valid external URL starting with http:// or https://.' });
+  }
+
+  await db.prepare(`
+    UPDATE study_materials SET title=?, category=?, description=?, file_count=?, logo_text=?, accent=?, source_type=?, url=?, pdf_file_name=?, pdf_data_url=?
+    WHERE id=?
+  `).run(
+    title, category, description,
+    Number(b.fileCount ?? existing.file_count) > 0 ? Number(b.fileCount ?? existing.file_count) : 1,
+    String(b.logoText ?? (existing.logo_text || title.slice(0, 2).toUpperCase())),
+    String(b.accent ?? existing.accent),
+    sourceType,
+    nextUrl,
+    sourceType === 'pdf' ? String(b.pdfFileName ?? (existing.pdf_file_name || 'document.pdf')) : null,
+    sourceType === 'pdf' ? String(b.pdfDataUrl ?? (existing.pdf_data_url ?? '')) : null,
+    req.params.id
+  );
+
+  const row = await db.prepare(`SELECT * FROM study_materials WHERE id=?`).get(req.params.id);
+  res.json(toStudyMaterial(row));
+});
+
+app.delete('/api/admin/materials/:id', requireAuth, requireAdmin, async (req, res) => {
+  const result = await db.prepare(`DELETE FROM study_materials WHERE id=?`).run(req.params.id);
+  if (result.changes === 0) return res.status(404).json({ error: 'Study material not found.' });
+  res.json({ success: true });
 });
 
 // ---------------------------------------------------------------------------
