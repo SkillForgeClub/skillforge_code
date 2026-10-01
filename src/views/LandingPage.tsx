@@ -18,9 +18,11 @@ import {
   Calendar,
   Zap,
   Shield,
-  Star
+  Star,
+  Search,
+  Download
 } from 'lucide-react';
-import { Quiz, LeaderboardEntry } from '../types';
+import { Quiz, LeaderboardEntry, StudyMaterial, DEFAULT_STUDY_MATERIALS, STUDY_MATERIALS_STORAGE_KEY } from '../types';
 import { quizzesApi, leaderboardApi, problemsApi } from '../services/api';
 
 interface LandingPageProps {
@@ -28,12 +30,28 @@ interface LandingPageProps {
   onSelectRole?: (role: 'Student' | 'Admin') => void;
 }
 
+const readStudyMaterials = (): StudyMaterial[] => {
+  if (typeof window === 'undefined') return DEFAULT_STUDY_MATERIALS;
+
+  try {
+    const raw = window.localStorage.getItem(STUDY_MATERIALS_STORAGE_KEY);
+    if (!raw) return DEFAULT_STUDY_MATERIALS;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_STUDY_MATERIALS;
+  } catch {
+    return DEFAULT_STUDY_MATERIALS;
+  }
+};
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRole }) => {
   const [previewQuizzes, setPreviewQuizzes] = useState<Quiz[]>([]);
   const [previewLeaderboard, setPreviewLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [stats, setStats] = useState({ problems: 0 });
+  const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(readStudyMaterials);
 
   useEffect(() => {
+    const syncStudyMaterials = () => setStudyMaterials(readStudyMaterials());
+
     quizzesApi.list().then((all) => {
       const live = all.filter(q => q.status === 'Live');
       setPreviewQuizzes((live.length > 0 ? live : all).slice(0, 2));
@@ -42,6 +60,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
     problemsApi.list().then((problems) => {
       setStats((currentStats) => ({ ...currentStats, problems: problems.length }));
     }).catch(() => {});
+
+    syncStudyMaterials();
+    window.addEventListener('skillforge-study-materials-sync', syncStudyMaterials);
+
+    return () => window.removeEventListener('skillforge-study-materials-sync', syncStudyMaterials);
   }, []);
 
   const navigateToProblemArena = () => {
@@ -139,6 +162,66 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectRo
                 </code>
               </pre>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-zinc-50/90 dark:bg-[#111111] border-t border-b border-zinc-200/70 dark:border-zinc-800/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="flex items-center justify-between gap-4 pb-4 border-b border-zinc-200/70 dark:border-zinc-800/80">
+            <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              <span className="text-zinc-700 dark:text-zinc-300">DSA Sheet</span>
+              <span className="mx-2">›</span>
+              <span className="font-semibold text-zinc-900 dark:text-white">Study Material</span>
+            </div>
+            <button
+              type="button"
+              className="h-14 w-14 rounded-full border border-zinc-200 bg-white shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 flex items-center justify-center"
+              aria-label="Search material"
+            >
+              <Search className="h-6 w-6 text-zinc-700 dark:text-zinc-300" />
+            </button>
+          </div>
+
+          <div className="pt-8 pb-6">
+            <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-zinc-900 dark:text-white">Downloadable Notes</h2>
+            <p className="mt-3 text-lg text-zinc-600 dark:text-zinc-400">
+              Browse resources, notes, PDFs, cheat sheets, and learning materials.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 pb-4">
+            {studyMaterials.map((material) => (
+              <article
+                key={material.id}
+                className="rounded-[22px] border border-zinc-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-transform hover:-translate-y-1 dark:border-zinc-800 dark:bg-[#141414]"
+              >
+                <div className="mb-5 flex min-h-[110px] items-center justify-center rounded-2xl bg-gradient-to-br p-5 shadow-inner">
+                  <div className={`flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br ${material.accent} text-2xl font-black text-white shadow-lg`}>
+                    {material.logoText.length > 8 ? material.logoText.slice(0, 2).toUpperCase() : material.logoText}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white">{material.title}</h3>
+                  <p className="text-base text-zinc-600 dark:text-zinc-400">{material.description}</p>
+                </div>
+
+                <div className="mt-6 flex items-center justify-between gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                  <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                    <span className="font-bold text-zinc-800 dark:text-zinc-200">{material.fileCount}</span> Files
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => window.open(material.url, '_blank', 'noopener,noreferrer')}
+                    className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 transition hover:text-indigo-500 dark:text-indigo-400"
+                  >
+                    <span>View Files</span>
+                    <Download className="h-4 w-4" />
+                  </button>
+                </div>
+              </article>
+            ))}
           </div>
         </div>
       </section>

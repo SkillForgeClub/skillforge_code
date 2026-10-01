@@ -157,3 +157,59 @@ export interface ContestStandingEntry {
   totalPenaltyMinutes: number;
   perProblem: Record<string, { solved: boolean; attempts: number; points: number; penaltyMinutes: number }>;
 }
+
+export interface StudyMaterial {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  fileCount: number;
+  logoText: string;
+  accent: string;
+  url: string;
+}
+
+export const STUDY_MATERIALS_STORAGE_KEY = 'skillforge-study-materials-v1';
+
+export const DEFAULT_STUDY_MATERIALS: StudyMaterial[] = [
+  {
+    id: 'internship-programs',
+    title: 'Internship Programs',
+    category: 'Career',
+    description: '25+ Internship & Hackathon Programs for Students',
+    fileCount: 1,
+    logoText: 'Flipkart',
+    accent: 'from-[#ffde59] via-[#facc15] to-[#f59e0b]',
+    url: '#',
+  },
+  {
+    id: 'cs-fundamentals',
+    title: 'CS Fundamentals',
+    category: 'Core CS',
+    description: 'Complete Notes of CS Fundamentals',
+    fileCount: 4,
+    logoText: 'CS',
+    accent: 'from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd]',
+    url: '#',
+  },
+  {
+    id: 'python-notes',
+    title: 'Python',
+    category: 'Programming',
+    description: 'Detailed Notes of Python',
+    fileCount: 8,
+    logoText: 'Python',
+    accent: 'from-[#1f2937] via-[#0f172a] to-[#334155]',
+    url: '#',
+  },
+  {
+    id: 'javascript-notes',
+    title: 'JavaScript',
+    category: 'Web',
+    description: 'Modern JavaScript notes and examples',
+    fileCount: 6,
+    logoText: 'JavaScript',
+    accent: 'from-[#facc15] via-[#fbbf24] to-[#f59e0b]',
+    url: '#',
+  },
+];

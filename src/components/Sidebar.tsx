@@ -15,7 +15,8 @@ import {
   User, 
   LogOut,
   ChevronRight,
-  Swords
+  Swords,
+  BookOpen
 } from 'lucide-react';
 
 export type AdminTab = 
@@ -26,6 +27,7 @@ export type AdminTab =
   | 'contests'
   | 'leaderboard' 
   | 'certificates' 
+  | 'materials' 
   | 'settings' 
   | 'profile';
 
@@ -48,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'contests', label: 'Contests', icon: Swords },
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
     { id: 'certificates', label: 'Certificates', icon: BadgeCheck },
+    { id: 'materials', label: 'Study Materials', icon: BookOpen },
     { id: 'settings', label: 'Platform Settings', icon: Settings },
     { id: 'profile', label: 'Profile', icon: User },
   ] as const;

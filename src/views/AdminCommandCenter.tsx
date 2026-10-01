@@ -26,7 +26,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Sidebar, AdminTab } from '../components/Sidebar';
-import { CodingProblem, Quiz, Difficulty, QuizQuestion, Student } from '../types';
+import { CodingProblem, Quiz, Difficulty, QuizQuestion, Student, StudyMaterial, DEFAULT_STUDY_MATERIALS, STUDY_MATERIALS_STORAGE_KEY } from '../types';
 import { adminApi, problemsApi, quizzesApi, leaderboardApi, contestsApi, ApiError, BulkImportResult } from '../services/api';
 import { Contest } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -60,6 +60,19 @@ const quizFormSchema = z.object({
 type QuizFormValues = z.infer<typeof quizFormSchema>;
 type QuizQuestionValues = z.infer<typeof quizQuestionSchema>;
 
+const readStoredStudyMaterials = (): StudyMaterial[] => {
+  if (typeof window === 'undefined') return DEFAULT_STUDY_MATERIALS;
+
+  try {
+    const raw = window.localStorage.getItem(STUDY_MATERIALS_STORAGE_KEY);
+    if (!raw) return DEFAULT_STUDY_MATERIALS;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_STUDY_MATERIALS;
+  } catch {
+    return DEFAULT_STUDY_MATERIALS;
+  }
+};
+
 export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
   onNavigate,
   addToast
@@ -81,6 +94,17 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
     problems: { problemId: string; label: string; points: number }[];
   }>({ title: '', description: '', startTime: '', endTime: '', problems: [] });
   const [leaderboardEntries, setLeaderboardEntries] = useState<any[]>([]);
+  const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(readStoredStudyMaterials);
+  const [studyMaterialForm, setStudyMaterialForm] = useState({
+    id: '',
+    title: '',
+    category: '',
+    description: '',
+    fileCount: 1,
+    logoText: '',
+    accent: 'from-indigo-500 via-blue-500 to-cyan-500',
+    url: '#',
+  });
   const [recentSubmissionLogs, setRecentSubmissionLogs] = useState<Array<{
     id: string; studentName: string; problemTitle: string; language: string; status: string; submittedAt: string;
   }>>([]);
@@ -118,10 +142,16 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
       adminApi.recentSubmissions().then(setRecentSubmissionLogs).catch(() => setRecentSubmissionLogs([]));
     };
 
+    const syncStudyMaterials = () => setStudyMaterials(readStoredStudyMaterials());
     refreshDashboardData();
+    syncStudyMaterials();
     const refreshInterval = window.setInterval(refreshDashboardData, 15000);
+    window.addEventListener('skillforge-study-materials-sync', syncStudyMaterials);
 
-    return () => window.clearInterval(refreshInterval);
+    return () => {
+      window.clearInterval(refreshInterval);
+      window.removeEventListener('skillforge-study-materials-sync', syncStudyMaterials);
+    };
   }, []);
   
   // Search states
@@ -259,6 +289,68 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
     } catch (err) {
       addToast('Removal Failed', 'error', err instanceof ApiError ? err.message : 'Could not remove certificate.');
     }
+  };
+
+  const persistStudyMaterials = (nextMaterials: StudyMaterial[]) => {
+    setStudyMaterials(nextMaterials);
+    window.localStorage.setItem(STUDY_MATERIALS_STORAGE_KEY, JSON.stringify(nextMaterials));
+    window.dispatchEvent(new Event('skillforge-study-materials-sync'));
+  };
+
+  const handleStudyMaterialSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!studyMaterialForm.title.trim() || !studyMaterialForm.category.trim() || !studyMaterialForm.description.trim()) {
+      addToast('Validation Error', 'warning', 'Title, category, and description are required.');
+      return;
+    }
+
+    const material: StudyMaterial = {
+      id: studyMaterialForm.id || `material-${Date.now()}`,
+      title: studyMaterialForm.title.trim(),
+      category: studyMaterialForm.category.trim(),
+      description: studyMaterialForm.description.trim(),
+      fileCount: Math.max(1, Number(studyMaterialForm.fileCount) || 1),
+      logoText: studyMaterialForm.logoText.trim() || studyMaterialForm.title.trim().slice(0, 2).toUpperCase(),
+      accent: studyMaterialForm.accent,
+      url: studyMaterialForm.url.trim() || '#',
+    };
+
+    const nextMaterials = studyMaterialForm.id
+      ? studyMaterials.map((entry) => (entry.id === studyMaterialForm.id ? material : entry))
+      : [material, ...studyMaterials];
+
+    persistStudyMaterials(nextMaterials);
+    setStudyMaterialForm({
+      id: '',
+      title: '',
+      category: '',
+      description: '',
+      fileCount: 1,
+      logoText: '',
+      accent: 'from-indigo-500 via-blue-500 to-cyan-500',
+      url: '#',
+    });
+    addToast('Study Material Saved', 'success', `${material.title} is now visible on the landing page.`);
+  };
+
+  const handleStudyMaterialDelete = (id: string) => {
+    const material = studyMaterials.find((entry) => entry.id === id);
+    const nextMaterials = studyMaterials.filter((entry) => entry.id !== id);
+    persistStudyMaterials(nextMaterials);
+    if (studyMaterialForm.id === id) {
+      setStudyMaterialForm({
+        id: '',
+        title: '',
+        category: '',
+        description: '',
+        fileCount: 1,
+        logoText: '',
+        accent: 'from-indigo-500 via-blue-500 to-cyan-500',
+        url: '#',
+      });
+    }
+    addToast('Study Material Removed', 'warning', material ? `Removed ${material.title}.` : 'Resource removed.');
   };
 
   // 1. Actions: Student Manager
@@ -1750,7 +1842,151 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
           </div>
         )}
 
-        {/* TAB 6: CERTIFICATES ISSUANCE */}
+        {/* TAB 6: STUDY MATERIALS MANAGEMENT */}
+        {activeAdminTab === 'materials' && (
+          <div className="space-y-6">
+            <h3 className="font-extrabold text-sm uppercase tracking-wide text-zinc-400">Study Materials Administration</h3>
+
+            <form onSubmit={handleStudyMaterialSubmit} className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-zinc-400">Title</label>
+                  <input
+                    value={studyMaterialForm.title}
+                    onChange={(e) => setStudyMaterialForm((prev) => ({ ...prev, title: e.target.value }))}
+                    placeholder="CS Fundamentals"
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-zinc-400">Category</label>
+                  <input
+                    value={studyMaterialForm.category}
+                    onChange={(e) => setStudyMaterialForm((prev) => ({ ...prev, category: e.target.value }))}
+                    placeholder="Core CS"
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-[10px] font-bold uppercase text-zinc-400">Description</label>
+                  <textarea
+                    value={studyMaterialForm.description}
+                    onChange={(e) => setStudyMaterialForm((prev) => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                    placeholder="This material includes notes, cheatsheets and references"
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200 resize-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-zinc-400">File Count</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={studyMaterialForm.fileCount}
+                    onChange={(e) => setStudyMaterialForm((prev) => ({ ...prev, fileCount: Number(e.target.value) || 1 }))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-zinc-400">Logo Text</label>
+                  <input
+                    value={studyMaterialForm.logoText}
+                    onChange={(e) => setStudyMaterialForm((prev) => ({ ...prev, logoText: e.target.value }))}
+                    placeholder="Python"
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-[10px] font-bold uppercase text-zinc-400">Theme Gradient</label>
+                  <input
+                    value={studyMaterialForm.accent}
+                    onChange={(e) => setStudyMaterialForm((prev) => ({ ...prev, accent: e.target.value }))}
+                    placeholder="from-indigo-500 via-blue-500 to-cyan-500"
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-[10px] font-bold uppercase text-zinc-400">Download / View URL</label>
+                  <input
+                    value={studyMaterialForm.url}
+                    onChange={(e) => setStudyMaterialForm((prev) => ({ ...prev, url: e.target.value }))}
+                    placeholder="https://example.com/notes"
+                    className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-xs text-zinc-800 dark:text-zinc-200"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm border-none cursor-pointer"
+                >
+                  {studyMaterialForm.id ? 'Update Material' : 'Add Material'}
+                </button>
+                {studyMaterialForm.id && (
+                  <button
+                    type="button"
+                    onClick={() => setStudyMaterialForm({
+                      id: '',
+                      title: '',
+                      category: '',
+                      description: '',
+                      fileCount: 1,
+                      logoText: '',
+                      accent: 'from-indigo-500 via-blue-500 to-cyan-500',
+                      url: '#',
+                    })}
+                    className="px-5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-200 text-xs font-bold cursor-pointer"
+                  >
+                    Clear Form
+                  </button>
+                )}
+              </div>
+            </form>
+
+            <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 space-y-4">
+              <h4 className="font-extrabold text-xs uppercase tracking-wider text-zinc-400">Current Materials</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {studyMaterials.map((material) => (
+                  <div key={material.id} className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-4 space-y-3">
+                    <div className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${material.accent} text-lg font-black text-white`}>
+                      {material.logoText.length > 2 ? material.logoText.slice(0, 2).toUpperCase() : material.logoText.toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-extrabold text-zinc-900 dark:text-white">{material.title}</p>
+                      <p className="text-[11px] text-zinc-500">{material.category}</p>
+                    </div>
+                    <p className="text-[11px] text-zinc-500">{material.fileCount} files • {material.description}</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setStudyMaterialForm({ ...material })}
+                        className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStudyMaterialDelete(material.id)}
+                        className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-bold cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 7: CERTIFICATES ISSUANCE */}
         {activeAdminTab === 'certificates' && (
           <div className="space-y-6">
             <h3 className="font-extrabold text-sm uppercase tracking-wide text-zinc-400">Issue Academic Standing Certificates</h3>
