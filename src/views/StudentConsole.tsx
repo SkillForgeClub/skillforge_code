@@ -196,6 +196,7 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
     problemsSolved: { easy: 0, medium: 0, hard: 0 }, streak: 0, points: 0, certificates: [], badges: [],
   };
   const [submissionsLog, setSubmissionsLog] = useState<Submission[]>([]);
+  const [submissionsLoadState, setSubmissionsLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [problemsCatalog, setProblemsCatalog] = useState<CodingProblem[]>([]);
   const [quizzesCatalog, setQuizzesCatalog] = useState<Quiz[]>([]);
   const [studyMaterialsList, setStudyMaterialsList] = useState<StudyMaterial[]>([]);
@@ -203,7 +204,11 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
 
   useEffect(() => {
     refreshStudent();
-    submissionsApi.mine().then(setSubmissionsLog).catch((err) => {
+    submissionsApi.mine().then((submissions) => {
+      setSubmissionsLog(submissions);
+      setSubmissionsLoadState('loaded');
+    }).catch((err) => {
+      setSubmissionsLoadState('error');
       const message = err instanceof ApiError ? err.message : 'Could not load your submission history.';
       addToast('Failed to Load Submissions', 'error', message);
     });
@@ -456,13 +461,27 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
                 <p className="text-[10px] text-zinc-400 font-semibold mb-4">Your compiler submissions over the last 7 days</p>
               </div>
               <div className="h-36">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={submissionsWeeklyData}>
-                    <XAxis dataKey="day" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
-                    <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: 10, background: '#18181b', color: '#fff', border: 'none', borderRadius: 8 }} />
-                    <Bar dataKey="count" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {submissionsLoadState === 'loading' ? (
+                  <div className="h-full flex items-center justify-center text-xs text-zinc-400" role="status">
+                    Loading activity...
+                  </div>
+                ) : submissionsLoadState === 'error' ? (
+                  <div className="h-full flex items-center justify-center text-xs text-rose-500" role="status">
+                    Activity could not be loaded.
+                  </div>
+                ) : submissionsWeeklyData.every(({ count }) => count === 0) ? (
+                  <div className="h-full flex items-center justify-center text-xs text-zinc-400">
+                    No submissions in the last 7 days.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={submissionsWeeklyData}>
+                      <XAxis dataKey="day" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
+                      <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: 10, background: '#18181b', color: '#fff', border: 'none', borderRadius: 8 }} />
+                      <Bar dataKey="count" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>
