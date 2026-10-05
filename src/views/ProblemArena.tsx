@@ -71,10 +71,16 @@ export const ProblemArena: React.FC<ProblemArenaProps> = ({
   )];
 
   // Handle filtrations
-  const filteredProblemsList = codingProblemsList.filter((prob) => {
-    const matchesSearch = prob.title.toLowerCase().includes(searchFilterQuery.toLowerCase()) ||
-                          prob.category.toLowerCase().includes(searchFilterQuery.toLowerCase()) ||
-                          prob.statement.toLowerCase().includes(searchFilterQuery.toLowerCase());
+  const normalizedSearchQuery = searchFilterQuery.trim().toLowerCase();
+  const searchedProblemNumber = normalizedSearchQuery.replace(/^#/, '');
+  const isProblemNumberSearch = /^\d+$/.test(searchedProblemNumber);
+  const filteredProblemsList = codingProblemsList
+    .map((prob, index) => ({ prob, number: index + 1 }))
+    .filter(({ prob, number }) => {
+    const matchesSearch = (isProblemNumberSearch && Number(searchedProblemNumber) === number) ||
+                          prob.title.toLowerCase().includes(normalizedSearchQuery) ||
+                          prob.category.toLowerCase().includes(normalizedSearchQuery) ||
+                          prob.statement.toLowerCase().includes(normalizedSearchQuery);
 
     const matchesDifficulty = selectedDifficulty === 'All' || prob.difficulty === selectedDifficulty;
     const matchesCategory = selectedCategory === 'All' ||
@@ -150,7 +156,7 @@ export const ProblemArena: React.FC<ProblemArenaProps> = ({
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
                 <input
                   type="text"
-                  placeholder="Search problem sets..."
+                  placeholder="Search by problem name or number..."
                   value={searchFilterQuery}
                   onChange={(e) => { setSearchFilterQuery(e.target.value); setProblemsCurrentPage(1); }}
                   className="w-full pl-10 pr-4 py-2 bg-zinc-50 dark:bg-[#0a0a0a] text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 outline-none focus:ring-1 focus:ring-indigo-500"
@@ -211,7 +217,7 @@ export const ProblemArena: React.FC<ProblemArenaProps> = ({
                 <p className="text-xs text-zinc-400 font-bold">Loading problem bank...</p>
               </div>
             )}
-            {paginatedProblemsList.map((prob) => (
+            {paginatedProblemsList.map(({ prob, number }) => (
               <div 
                 key={prob.id} 
                 onClick={() => handleChooseProblem(prob)}
@@ -219,6 +225,9 @@ export const ProblemArena: React.FC<ProblemArenaProps> = ({
               >
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-[9px] font-bold text-indigo-600 dark:text-indigo-400" title={`Problem ${number}`}>
+                      #{number}
+                    </span>
                     {prob.status === 'Solved' && (
                       <CheckCircle className="h-4 w-4 text-emerald-500" title="Solved problem" />
                     )}
