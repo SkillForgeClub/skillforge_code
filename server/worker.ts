@@ -21,6 +21,7 @@ import 'dotenv/config';
 import { Worker, Job } from 'bullmq';
 import { createRedisConnection } from './redis.js';
 import { db, initSchema } from './db.js';
+import { getContestPointMode, settleCompletedContestPoints } from './contestPoints.js';
 import { judge, Language } from './judge.js';
 import { sseEmit } from './sse.js';
 import type { SubmissionJobData } from './jobQueue.js';
@@ -212,6 +213,8 @@ async function start() {
         if (!alreadySolved && probRow) {
           await db.prepare(`UPDATE problems SET solved_count = solved_count + 1 WHERE id=?`).run(problemId);
           const pointsAward = probRow.difficulty === 'Hard' ? 8 : probRow.difficulty === 'Medium' ? 4 : 2;
+          const pointMode = contestId ? await getContestPointMode(submissionId) : 'legacy';
+          const profilePointsAward = pointMode === 'legacy' ? pointsAward : 0;
           const col = probRow.difficulty === 'Hard' ? 'hard_solved' : probRow.difficulty === 'Medium' ? 'medium_solved' : 'easy_solved';
           const userRow = await db.prepare(`SELECT * FROM users WHERE id=?`).get(userId);
           if (userRow) {
@@ -225,14 +228,22 @@ async function start() {
             } else {
               newStreak = 1;
             }
-            const newPoints = userRow.points + pointsAward;
+            const newPoints = userRow.points + profilePointsAward;
             await db.prepare(`
               UPDATE users SET ${col} = ${col} + 1, points = points + ?, streak = ?, last_solved_date = ?,
                 level = 1 + CAST((easy_solved + medium_solved + hard_solved + 1) / 5 AS INTEGER),
                 star_rating = GREATEST(star_rating, ?)
               WHERE id=?
-            `).run(pointsAward, newStreak, today, computeStarRating(newPoints), userId);
+            `).run(profilePointsAward, newStreak, today, computeStarRating(newPoints), userId);
           }
+        }
+      }
+
+      if (contestId) {
+        try {
+          await settleCompletedContestPoints(contestId);
+        } catch (err) {
+          console.error('[contest-points] Worker settlement failed:', err);
         }
       }
 

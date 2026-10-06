@@ -120,10 +120,10 @@ contestsRouter.get('/:id', optionalAuth, async (req: AuthedRequest, res) => {
   const problems = await Promise.all(problemRows.map(async (p: any) => {
     let solveStatus: 'Solved' | 'Attempted' | 'Unsolved' = 'Unsolved';
     if (userId) {
-      const solved = await db.prepare(`SELECT 1 FROM submissions WHERE user_id=? AND problem_id=? AND contest_id=? AND status='Accepted' LIMIT 1`).get(userId, p.problem_id, row.id);
+      const solved = await db.prepare(`SELECT 1 FROM submissions WHERE user_id=? AND problem_id=? AND contest_id=? AND status='Accepted' AND submitted_at>=? AND submitted_at<=? LIMIT 1`).get(userId, p.problem_id, row.id, row.start_time, row.end_time);
       if (solved) solveStatus = 'Solved';
       else {
-        const attempted = await db.prepare(`SELECT 1 FROM submissions WHERE user_id=? AND problem_id=? AND contest_id=? LIMIT 1`).get(userId, p.problem_id, row.id);
+        const attempted = await db.prepare(`SELECT 1 FROM submissions WHERE user_id=? AND problem_id=? AND contest_id=? AND submitted_at>=? AND submitted_at<=? LIMIT 1`).get(userId, p.problem_id, row.id, row.start_time, row.end_time);
         if (attempted) solveStatus = 'Attempted';
       }
     }
@@ -188,9 +188,9 @@ contestsRouter.get('/:id/leaderboard', optionalAuth, async (req, res) => {
     for (const cp of contestProblems) {
       const subs = await db.prepare(`
         SELECT status, submitted_at FROM submissions
-        WHERE user_id=? AND problem_id=? AND contest_id=?
+        WHERE user_id=? AND problem_id=? AND contest_id=? AND submitted_at>=? AND submitted_at<=?
         ORDER BY submitted_at ASC
-      `).all(user.id, cp.problem_id, req.params.id);
+      `).all(user.id, cp.problem_id, req.params.id, contest.start_time, contest.end_time);
 
       let wrongBeforeAccept = 0;
       let acceptedAt: number | null = null;
@@ -234,8 +234,8 @@ contestsRouter.post('/', requireAuth, requireAdmin, async (req, res) => {
   const b = req.body || {};
   if (!b.title || !b.startTime || !b.endTime) return res.status(400).json({ error: 'Title, start time, and end time are required.' });
   const id = newId('contest');
-  await db.prepare(`INSERT INTO contests (id, title, description, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-    .run(id, b.title, b.description || '', b.startTime, b.endTime, nowIso());
+  await db.prepare(`INSERT INTO contests (id, title, description, start_time, end_time, profile_points_eligible_from, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, b.title, b.description || '', b.startTime, b.endTime, b.startTime, nowIso());
 
   const insertCP = db.prepare(`INSERT INTO contest_problems (contest_id, problem_id, label, points, ord) VALUES (?, ?, ?, ?, ?)`);
   for (const [idx, p] of (b.problems || []).entries()) {

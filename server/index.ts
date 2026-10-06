@@ -14,6 +14,7 @@ import { judge, runCustom, Language } from './judge.js';
 import { runQueued, queueStats } from './queue.js';
 import { getQueueStats } from './jobQueue.js';
 import { contestsRouter } from './contests.js';
+import { getContestPointMode, settleCompletedContestPoints } from './contestPoints.js';
 import { checkRateLimit, markSubmitted, markFinished } from './rateLimit.js';
 import { sendResetCodeEmail } from './email.js';
 import { sseConnect, sseConnectionCount } from './sse.js';
@@ -82,6 +83,17 @@ async function getCachedValue<T>(cacheKey: string, ttlMs: number, loader: () => 
 
 function invalidateCache(...keys: string[]) {
   keys.forEach((key) => apiCache.delete(key));
+}
+
+async function settleContestPoints(contestId?: string): Promise<number> {
+  try {
+    const settled = await settleCompletedContestPoints(contestId);
+    if (settled > 0) invalidateCache('leaderboard:list');
+    return settled;
+  } catch (err) {
+    console.error('[contest-points] Settlement deferred after error:', err);
+    return 0;
+  }
 }
 
 function invalidateCachePrefix(prefix: string) {
@@ -268,9 +280,13 @@ app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
 
-  const row = await db.prepare(`SELECT * FROM users WHERE email = ?`).get(String(email).toLowerCase());
+  let row = await db.prepare(`SELECT * FROM users WHERE email = ?`).get(String(email).toLowerCase());
   if (!row || !bcrypt.compareSync(password, row.password_hash)) {
     return res.status(401).json({ error: 'Invalid email or password.' });
+  }
+  const settled = await settleContestPoints();
+  if (settled > 0) {
+    row = await db.prepare(`SELECT * FROM users WHERE id=?`).get(row.id);
   }
   if (row.role === 'student') {
     await db.prepare(`UPDATE users SET last_login_date=? WHERE id=?`).run(todayUtc(), row.id);
@@ -284,6 +300,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.get('/api/auth/me', requireAuth, async (req: AuthedRequest, res) => {
+  await settleContestPoints();
   const row = await db.prepare(`SELECT * FROM users WHERE id=?`).get(req.user!.id);
   if (!row) return res.status(404).json({ error: 'User not found.' });
   if (row.role === 'admin') {
@@ -655,6 +672,7 @@ app.post('/api/submissions/submit', requireAuth, async (req: AuthedRequest, res)
   if (req.user!.role !== 'student') return res.status(403).json({ error: 'Only students can submit solutions.' });
   const probRow = await db.prepare(`SELECT * FROM problems WHERE id=?`).get(problemId);
   if (!probRow) return res.status(404).json({ error: 'Problem not found.' });
+  if (probRow.contest_only && !contestId) return res.status(400).json({ error: 'This problem can only be submitted through its contest.' });
 
   if (contestId) {
     const contestRow = await db.prepare(`SELECT * FROM contests WHERE id=?`).get(contestId);
@@ -706,6 +724,8 @@ app.post('/api/submissions/submit', requireAuth, async (req: AuthedRequest, res)
       if (!alreadySolvedBefore) {
         await db.prepare(`UPDATE problems SET solved_count = solved_count + 1 WHERE id=?`).run(problemId);
         const pointsAward = probRow.difficulty === 'Hard' ? 8 : probRow.difficulty === 'Medium' ? 4 : 2;
+        const pointMode = contestId ? await getContestPointMode(subId) : 'legacy';
+        const profilePointsAward = pointMode === 'legacy' ? pointsAward : 0;
         const col = probRow.difficulty === 'Hard' ? 'hard_solved' : probRow.difficulty === 'Medium' ? 'medium_solved' : 'easy_solved';
         const userRow = await db.prepare(`SELECT * FROM users WHERE id=?`).get(req.user!.id);
         const today = new Date().toISOString().slice(0, 10);
@@ -724,9 +744,12 @@ app.post('/api/submissions/submit', requireAuth, async (req: AuthedRequest, res)
             level = 1 + CAST((easy_solved + medium_solved + hard_solved + 1) / 5 AS INTEGER),
             star_rating = GREATEST(star_rating, ?)
           WHERE id=?
-        `).run(pointsAward, newStreak, today, computeStarRating(userRow.points + pointsAward), req.user!.id);
+        `).run(profilePointsAward, newStreak, today, computeStarRating(userRow.points + profilePointsAward), req.user!.id);
         invalidateCache('leaderboard:list');
       }
+    }
+    if (contestId) {
+      await settleContestPoints(contestId);
     }
   }).catch(async (err) => {
     await db.prepare(`UPDATE submissions SET status='Runtime Error', result_json=? WHERE id=?`)
@@ -1196,6 +1219,16 @@ process.on('uncaughtException', (err) => {
 async function start() {
   await initSchema();
   await seedIfEmpty();
+  const settleExpiredContests = async () => {
+    try {
+      const settled = await settleCompletedContestPoints();
+      if (settled > 0) invalidateCache('leaderboard:list');
+    } catch (err) {
+      console.error('[contest-points] Scheduled settlement failed:', err);
+    }
+  };
+  await settleExpiredContests();
+  setInterval(() => void settleExpiredContests(), 30000).unref();
   app.listen(PORT, () => {
     console.log(`[server] SkillForge Code API listening on http://localhost:${PORT}`);
   });

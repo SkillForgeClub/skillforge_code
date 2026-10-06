@@ -187,6 +187,8 @@ CREATE TABLE IF NOT EXISTS contests (
   description TEXT NOT NULL DEFAULT '',
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
+  profile_points_eligible_from TEXT,
+  profile_points_awarded_at TEXT,
   created_at TEXT NOT NULL
 );
 
@@ -235,4 +237,20 @@ export async function initSchema(): Promise<void> {
   await db.exec(SCHEMA_SQL);
   await db.exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date TEXT`);
   await db.exec(`ALTER TABLE problems ADD COLUMN IF NOT EXISTS contest_only INTEGER NOT NULL DEFAULT 0`);
+  await db.exec(`ALTER TABLE contests ADD COLUMN IF NOT EXISTS profile_points_eligible_from TEXT`);
+  await db.exec(`ALTER TABLE contests ADD COLUMN IF NOT EXISTS profile_points_awarded_at TEXT`);
+  await db.prepare(`
+    UPDATE contests SET profile_points_awarded_at=end_time
+    WHERE profile_points_awarded_at IS NULL AND profile_points_eligible_from IS NULL AND end_time<=?
+      AND NOT EXISTS (
+        SELECT 1 FROM submissions
+        WHERE submissions.contest_id=contests.id
+          AND submissions.submitted_at<=contests.end_time
+          AND submissions.status IN ('Queued','Running')
+      )
+  `).run(new Date().toISOString());
+  await db.prepare(`
+    UPDATE contests SET profile_points_eligible_from=?
+    WHERE profile_points_eligible_from IS NULL AND profile_points_awarded_at IS NULL
+  `).run(new Date().toISOString());
 }
