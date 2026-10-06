@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { 
   Play, 
@@ -20,8 +20,7 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  FileCode2,
-  Lock
+  FileCode2
 } from 'lucide-react';
 import { ProgrammingLanguage, CodingProblem, TestCase } from '../types';
 import { submissionsApi, ApiError } from '../services/api';
@@ -33,6 +32,7 @@ interface CodeEditorProps {
   onRun?: (code: string) => void;
   onSubmit?: (code: string, status?: string) => void;
   contestId?: string;
+  contestMode?: boolean;
   /**
    * 'judge' (default): Submit runs the real backend judge against all test cases, persists a
    *   graded submission, and updates the student's solved-count/points/streak - used for the
@@ -50,6 +50,12 @@ function draftKey(problemId: string, language: ProgrammingLanguage): string {
   return `skillforge_draft_v2_${problemId}_${language}`;
 }
 
+function redactHiddenCases(cases: { input: string; expected: string; actual: string; passed: boolean; isPublic: boolean }[]) {
+  return cases.map((testCase) => testCase.isPublic
+    ? testCase
+    : { input: '', expected: '', actual: '', passed: testCase.passed, isPublic: false });
+}
+
 export const CodeEditor: React.FC<CodeEditorProps> = ({
   problem,
   selectedLanguage,
@@ -57,6 +63,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onRun,
   onSubmit,
   contestId,
+  contestMode = false,
   submitMode = 'judge'
 }) => {
   const [code, setCode] = useState<string>('');
@@ -66,11 +73,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [showLineNumbers, setShowLineNumbers] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
-  const [lastSaved, setLastSaved] = useState<string>('Just now');
+  const [lastSaved, setLastSaved] = useState<string>('just now');
+  const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' || navigator.onLine);
   
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'results' | 'testcases'>('testcases');
+  const [activeTab, setActiveTab] = useState<'results' | 'testcases' | 'custom' | 'output'>('testcases');
+  const [consoleHeight, setConsoleHeight] = useState(230);
+  const consoleDrag = useRef<{ startY: number; startHeight: number } | null>(null);
   
   // Output logs
   const [outputLogs, setOutputLogs] = useState<{
@@ -92,18 +102,27 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       const saved = typeof window !== 'undefined' ? window.localStorage.getItem(draftKey(problem.id, selectedLanguage)) : null;
       setCode(saved !== null ? saved : (problem.starterTemplates[selectedLanguage] || ''));
     }
-  }, [problem, selectedLanguage]);
+  }, [problem.id, selectedLanguage, problem.starterTemplates[selectedLanguage]]);
 
-  // Real auto-save: persists the current draft to localStorage every 15s, per problem+language,
-  // so refreshing or navigating away doesn't lose in-progress code.
+  useEffect(() => {
+    const markOnline = () => setIsOnline(true);
+    const markOffline = () => setIsOnline(false);
+    window.addEventListener('online', markOnline);
+    window.addEventListener('offline', markOffline);
+    return () => {
+      window.removeEventListener('online', markOnline);
+      window.removeEventListener('offline', markOffline);
+    };
+  }, []);
+
   useEffect(() => {
     if (!autoSaveEnabled || !problem) return;
-    const interval = setInterval(() => {
+    try {
       window.localStorage.setItem(draftKey(problem.id, selectedLanguage), code);
-      const now = new Date();
-      setLastSaved(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    }, 15000);
-    return () => clearInterval(interval);
+      setLastSaved('just now');
+    } catch {
+      setLastSaved('local save unavailable');
+    }
   }, [autoSaveEnabled, code, problem, selectedLanguage]);
 
   const handleCopy = async () => {
@@ -150,7 +169,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         }
       );
 
-      const cases = result.testCasesChecked || [];
+      const cases = redactHiddenCases(result.testCasesChecked || []);
       const allPassed = cases.every(c => c.passed);
       setOutputLogs({
         status: result.status === 'Compilation Error' ? 'error' : allPassed ? 'success' : 'failed',
@@ -198,7 +217,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           }));
         }
       );
-      const cases = result.testCasesChecked || [];
+      const cases = redactHiddenCases(result.testCasesChecked || []);
       const passedCount = cases.filter(c => c.passed).length;
 
       let status: 'success' | 'failed' | 'error' = 'success';
@@ -222,18 +241,34 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   };
 
+  const handleEditorKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+    if (event.key === 'Enter' && event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!isRunning && !isSubmitting) void handleSubmitCode();
+    } else if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!isRunning && !isSubmitting) void handleRunCode();
+    }
+  };
+
   return (
-    <div className={`flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 overflow-hidden shadow-md transition-all ${
-      isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'h-[650px]'
-    }`}>
+    <div
+      onKeyDown={handleEditorKeyDown}
+      className={`flex flex-col border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 overflow-hidden shadow-md ${
+        isFullscreen ? 'fixed inset-0 z-50 rounded-none' : contestMode ? 'h-full min-h-0 rounded-none' : 'h-[650px] rounded-2xl transition-all'
+      }`}
+    >
       {/* Editor Header Control Bar */}
-      <div className="flex flex-wrap items-center justify-between px-4 py-2 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 gap-2">
+      <div className="flex flex-wrap items-center justify-between px-3 py-2 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 gap-2">
         {/* Left Controls: Lang & Save status */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium text-xs">
+          {!contestMode && <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium text-xs">
             <FileCode2 className="h-3.5 w-3.5 text-indigo-500" />
             <span>Workspace</span>
-          </div>
+          </div>}
           
           <select
             value={selectedLanguage}
@@ -260,7 +295,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             </button>
             {autoSaveEnabled && (
               <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
-                Saved at {lastSaved}
+                {!isOnline ? 'Offline · draft saved locally' : contestMode ? `Saved ${lastSaved}` : `Saved at ${lastSaved}`}
               </span>
             )}
           </div>
@@ -268,6 +303,20 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
         {/* Right Controls: Settings, maximize, copy */}
         <div className="flex items-center gap-2">
+          {contestMode && <>
+            <button
+              onClick={handleRunCode}
+              disabled={isRunning || isSubmitting}
+              title="Run public tests (Ctrl+Enter)"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs font-bold disabled:opacity-55"
+            ><Play className="h-3.5 w-3.5 fill-current" />Run</button>
+            <button
+              onClick={handleSubmitCode}
+              disabled={isRunning || isSubmitting}
+              title="Submit solution (Ctrl+Shift+Enter)"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold disabled:opacity-55"
+            ><Send className="h-3.5 w-3.5" />Submit</button>
+          </>}
           {/* Theme Selector */}
           <button
             onClick={() => setEditorTheme(editorTheme === 'vs-dark' ? 'light' : 'vs-dark')}
@@ -321,9 +370,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       </div>
 
       {/* Editor Split View */}
-      <div className="flex-grow flex flex-col md:flex-row overflow-hidden min-h-0">
+      <div className={`flex-grow flex overflow-hidden min-h-0 ${contestMode ? 'flex-col' : 'flex-col md:flex-row'}`}>
         {/* Left Side: Interactive Monaco Editor */}
-        <div className="flex-grow flex flex-col min-w-0 bg-zinc-950">
+        <div className={`flex-grow flex flex-col min-w-0 bg-zinc-950 ${contestMode ? 'min-h-0' : ''}`}>
           <Editor
             height="100%"
             language={mapMonacoLanguage(selectedLanguage)}
@@ -352,9 +401,27 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         </div>
 
         {/* Right Side / Bottom: Interactive Output Console */}
-        <div className="w-full md:w-[360px] border-t md:border-t-0 md:border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col h-[280px] md:h-auto min-h-0">
+        {contestMode && <div
+          role="separator"
+          aria-label="Resize results console"
+          aria-orientation="horizontal"
+          onPointerDown={(event) => {
+            consoleDrag.current = { startY: event.clientY, startHeight: consoleHeight };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            if (!consoleDrag.current) return;
+            setConsoleHeight(Math.max(130, Math.min(420, consoleDrag.current.startHeight + consoleDrag.current.startY - event.clientY)));
+          }}
+          onPointerUp={() => { consoleDrag.current = null; }}
+          className="h-1.5 shrink-0 cursor-row-resize bg-zinc-200 hover:bg-indigo-400 dark:bg-zinc-800 dark:hover:bg-indigo-500 touch-none"
+        />}
+        <div
+          style={contestMode ? { height: consoleHeight } : undefined}
+          className={`w-full ${contestMode ? 'shrink-0' : 'md:w-[360px]'} border-t ${contestMode ? '' : 'md:border-t-0 md:border-l'} border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col ${contestMode ? '' : 'h-[280px] md:h-auto'} min-h-0`}
+        >
           {/* Console tabs */}
-          <div className="flex border-b border-zinc-200 dark:border-zinc-800 px-2 bg-zinc-50 dark:bg-zinc-950">
+          <div className="flex border-b border-zinc-200 dark:border-zinc-800 px-2 bg-zinc-50 dark:bg-zinc-950 overflow-x-auto">
             <button
               onClick={() => setActiveTab('testcases')}
               className={`px-3 py-2 text-xs font-semibold border-b-2 transition-colors ${
@@ -363,7 +430,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                   : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
               }`}
             >
-              Public Test Cases
+              {contestMode ? 'Test Cases' : 'Public Test Cases'}
             </button>
             <button
               onClick={() => setActiveTab('results')}
@@ -381,6 +448,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                 }`} />
               )}
             </button>
+            {contestMode && <>
+              <button onClick={() => setActiveTab('custom')} className={`px-3 py-2 text-xs font-semibold border-b-2 whitespace-nowrap ${activeTab === 'custom' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-zinc-500'}`}>Custom Input</button>
+              <button onClick={() => setActiveTab('output')} className={`px-3 py-2 text-xs font-semibold border-b-2 whitespace-nowrap ${activeTab === 'output' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-zinc-500'}`}>Output</button>
+            </>}
           </div>
 
           {/* Consol panel body */}
@@ -391,11 +462,15 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                 <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">
                   Pre-configured inputs to verify your code structure.
                 </p>
-                {problem.testCases.filter(tc => tc.isPublic).map((tc, idx) => (
+                {problem.testCases.filter(tc => tc.isPublic).map((tc, idx) => {
+                  const publicResult = outputLogs.testCasesChecked?.filter((result) => result.isPublic)[idx];
+                  return (
                   <div key={tc.id} className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-850">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-bold text-zinc-600 dark:text-zinc-400">Case {idx + 1}</span>
-                      <span className="px-1.5 py-0.5 rounded text-[9px] bg-zinc-200 dark:bg-zinc-800 text-zinc-500 uppercase font-bold">Public</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${publicResult ? publicResult.passed ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : isRunning || isSubmitting ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-800'}`}>
+                        {publicResult ? publicResult.passed ? 'Passed' : 'Failed' : isRunning || isSubmitting ? 'Running' : 'Public'}
+                      </span>
                     </div>
                     <div className="space-y-2">
                       <div>
@@ -410,9 +485,32 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                           {tc.expectedOutput}
                         </pre>
                       </div>
+                      {publicResult && <div>
+                        <span className="text-[10px] text-zinc-400">Actual Output:</span>
+                        <pre className="bg-white dark:bg-zinc-900 p-1.5 rounded border border-zinc-100 dark:border-zinc-800 text-[11px] overflow-x-auto whitespace-pre">{publicResult.actual}</pre>
+                      </div>}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
+              </div>
+            )}
+
+            {activeTab === 'custom' && (
+              <div className="max-w-xl space-y-2 font-sans">
+                <h3 className="text-xs font-bold text-zinc-800 dark:text-zinc-200">Custom input</h3>
+                <p className="text-xs leading-relaxed text-zinc-500">Contest runs use the published test cases through the existing judge. Custom stdin is not supported by this contest runner.</p>
+                <textarea disabled aria-label="Custom input unavailable" placeholder="Custom input is unavailable for contest runs" className="h-20 w-full resize-y rounded-md border border-zinc-200 bg-zinc-100 p-2 font-mono text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950" />
+              </div>
+            )}
+
+            {activeTab === 'output' && (
+              <div className="space-y-3">
+                {outputLogs.stdout ? <pre className="whitespace-pre-wrap rounded-md bg-zinc-950 p-3 text-xs text-zinc-200">{outputLogs.stdout}</pre> : <p className="text-xs text-zinc-500">No standard output returned by the judge.</p>}
+                {outputLogs.testCasesChecked?.filter((testCase) => testCase.isPublic).map((testCase, index) => <div key={index} className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase text-zinc-500">Public case {index + 1} actual output</div>
+                  <pre className="whitespace-pre-wrap rounded-md bg-zinc-950 p-3 text-xs text-zinc-200">{testCase.actual}</pre>
+                </div>)}
               </div>
             )}
 
@@ -483,39 +581,25 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     <div className="grid grid-cols-2 gap-2 text-[10px] text-zinc-500 dark:text-zinc-400">
                       <div className="flex items-center gap-1.5 p-1.5 rounded bg-zinc-100 dark:bg-zinc-800">
                         <Clock className="h-3 w-3" />
-                        <span>Time: {outputLogs.timeMs} ms</span>
+                        <span>Time: {outputLogs.timeMs ?? '—'} ms</span>
                       </div>
                       <div className="flex items-center gap-1.5 p-1.5 rounded bg-zinc-100 dark:bg-zinc-800">
                         <Cpu className="h-3 w-3" />
-                        <span>Memory: {(outputLogs.memoryKb! / 1024).toFixed(2)} MB</span>
+                        <span>Memory: {outputLogs.memoryKb !== undefined ? `${(outputLogs.memoryKb / 1024).toFixed(2)} MB` : '—'}</span>
                       </div>
                     </div>
-
-                    {/* Stdout custom print */}
-                    {outputLogs.stdout && (
-                      <div className="space-y-1">
-                        <span className="text-[10px] text-zinc-400 uppercase">Stdout:</span>
-                        <pre className="p-2 rounded bg-zinc-950 border border-zinc-800 text-zinc-300 overflow-x-auto text-[10px] whitespace-pre-wrap">
-                          {outputLogs.stdout}
-                        </pre>
-                      </div>
-                    )}
+                    {outputLogs.testCasesChecked && <p className="text-[10px] font-semibold text-zinc-500">
+                      {outputLogs.testCasesChecked.filter((testCase) => testCase.passed).length}/{outputLogs.testCasesChecked.length} evaluated cases passed
+                    </p>}
 
                     {/* Individual testcase breakdowns */}
                     {outputLogs.testCasesChecked && (
                       <div className="space-y-2">
-                        <span className="text-[10px] text-zinc-400 uppercase font-semibold">Test Case Validation:</span>
+                        <span className="text-[10px] text-zinc-400 uppercase font-semibold">Public Test Case Validation:</span>
                         <div className="space-y-1.5">
-                          {outputLogs.testCasesChecked.map((tc, idx) => (
+                          {outputLogs.testCasesChecked.filter((tc) => tc.isPublic).map((tc, idx) => (
                             <div key={idx} className="flex items-center justify-between p-2 rounded bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-[11px]">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-zinc-500">Case {idx + 1}</span>
-                                {!tc.isPublic && (
-                                  <span className="flex items-center gap-0.5 px-1 py-0.2 bg-indigo-500/10 text-indigo-500 text-[9px] rounded font-semibold uppercase">
-                                    <Lock className="h-2.5 w-2.5" /> Hidden
-                                  </span>
-                                )}
-                              </div>
+                              <span className="font-semibold text-zinc-500">Case {idx + 1}</span>
                               <div className="flex items-center gap-1.5 font-bold">
                                 {tc.passed ? (
                                   <span className="text-emerald-500">Passed</span>
@@ -535,7 +619,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           </div>
 
           {/* Action Footer */}
-          <div className="p-3 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+          {!contestMode && <div className="p-3 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
             <span className="text-[10px] text-zinc-400 font-medium">Console Ready</span>
             <div className="flex gap-2">
               <button
@@ -555,7 +639,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                 <span>Submit Solution</span>
               </button>
             </div>
-          </div>
+          </div>}
         </div>
       </div>
     </div>

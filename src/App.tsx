@@ -26,6 +26,7 @@ export default function App() {
   const navigate = useNavigate();
   const [activeViewRoute, setActiveViewRoute] = useState<string>('home');
   const [activeContestId, setActiveContestId] = useState<string | null>(null);
+  const [isContestProblemView, setIsContestProblemView] = useState(false);
   const [isDarkModeActive, setIsDarkModeActive] = useState<boolean>(() => {
     const saved = localStorage.getItem('theme');
     return saved === 'dark';
@@ -141,6 +142,7 @@ export default function App() {
   }
 
   const pathname = location.pathname;
+  const isContestRoom = pathname === '/contest-room' && Boolean(activeContestId) && role !== 'Guest' && isContestProblemView;
 
   const renderRoutePage = () => {
     if (pathname === '/terms') return <TermsPage />;
@@ -252,21 +254,21 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-[#0a0a0a] text-zinc-900 dark:text-[#e5e5e5] transition-colors selection:bg-indigo-500/30">
+    <div className={`${isContestRoom ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-zinc-50 dark:bg-[#0a0a0a] text-zinc-900 dark:text-[#e5e5e5] transition-colors selection:bg-indigo-500/30`}>
       
       {/* 1. GLOBAL PLATFORM NAVBAR */}
-      <Navbar
+      {!isContestRoom && <Navbar
         currentRole={role}
         onRoleChange={handleSessionRoleChange}
         currentView={activeViewRoute}
         onNavigate={handleNavigate}
         isDarkMode={isDarkModeActive}
         onToggleDarkMode={() => setIsDarkModeActive(!isDarkModeActive)}
-      />
+      />}
 
       {/* 2. ROUTER SWITCHER */}
       <Suspense fallback={<div className="min-h-[50vh] flex items-center justify-center text-zinc-400 text-xs font-bold uppercase tracking-widest">Loading...</div>}>
-        <div className="animate-fade-in">
+        <div className={`animate-fade-in ${isContestRoom ? 'h-full min-h-0 flex flex-col' : ''}`}>
           {renderRoutePage() || (
           <>
             {activeViewRoute === 'home' && (
@@ -381,8 +383,12 @@ export default function App() {
             {activeViewRoute === 'contest-room' && activeContestId && role !== 'Guest' && (
               <ContestRoom
                 contestId={activeContestId}
+                onProblemViewChange={setIsContestProblemView}
                 onNavigate={handleNavigate}
-                onExit={() => handleNavigate('contests')}
+                onExit={() => {
+                  setIsContestProblemView(false);
+                  handleNavigate('contests');
+                }}
                 addToast={dispatchToastNotification}
               />
             )}

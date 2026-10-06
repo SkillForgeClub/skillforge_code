@@ -3,8 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Trophy, Clock, ListOrdered, CheckCircle, Circle, Medal } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Trophy, Clock, ListOrdered, CheckCircle, Circle, Medal, ChevronLeft, ChevronRight, CircleDot, LockKeyhole, Laptop } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import rehypeHighlight from 'rehype-highlight';
+import 'katex/dist/katex.min.css';
+import 'highlight.js/styles/github-dark.css';
 import { Contest, ContestProblemRef, ContestStandingEntry, CodingProblem, ProgrammingLanguage } from '../types';
 import { contestsApi, ApiError } from '../services/api';
 import { CodeEditor } from '../components/CodeEditor';
@@ -12,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 
 interface ContestRoomProps {
   contestId: string;
+  onProblemViewChange: (active: boolean) => void;
   onNavigate: (view: string) => void;
   onExit: () => void;
   addToast: (title: string, type: any, desc?: string) => void;
@@ -33,7 +41,7 @@ const difficultyColor: Record<string, string> = {
   Hard: 'text-rose-600 dark:text-rose-400',
 };
 
-export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onNavigate, onExit, addToast }) => {
+export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemViewChange, onNavigate, onExit, addToast }) => {
   const { role, refreshStudent } = useAuth();
   const [contest, setContest] = useState<Contest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,6 +50,8 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onNavigate,
   const [now, setNow] = useState(Date.now());
   const [activeProblem, setActiveProblem] = useState<ContestProblemRef | null>(null);
   const [editorLanguage, setEditorLanguage] = useState<ProgrammingLanguage>('Python');
+  const [splitPercent, setSplitPercent] = useState(42);
+  const splitDrag = useRef<{ startX: number; startPercent: number } | null>(null);
 
   const loadContest = () => {
     contestsApi
@@ -56,6 +66,10 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onNavigate,
     const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(tick);
   }, [contestId]);
+
+  useEffect(() => {
+    onProblemViewChange(Boolean(activeProblem));
+  }, [activeProblem, onProblemViewChange]);
 
   useEffect(() => {
     if (tab === 'standings' && contest?.status !== 'Upcoming') {
@@ -89,49 +103,146 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onNavigate,
 
   // Active problem solving view
   if (activeProblem) {
+    const problemIndex = (contest.problems || []).findIndex((problem) => problem.problemId === activeProblem.problemId);
+    const currentProblem = (contest.problems || [])[problemIndex] || activeProblem;
     const asCodingProblem: CodingProblem = {
-      id: activeProblem.problemId,
-      title: `${activeProblem.label}. ${activeProblem.title}`,
-      difficulty: activeProblem.difficulty,
-      category: activeProblem.category || '',
-      statement: activeProblem.statement || '',
-      inputFormat: activeProblem.inputFormat || '',
-      outputFormat: activeProblem.outputFormat || '',
-      constraints: activeProblem.constraints || '',
-      examples: activeProblem.examples || [],
-      starterTemplates: activeProblem.starterTemplates || {},
-      testCases: activeProblem.testCases || [],
+      id: currentProblem.problemId,
+      title: `${currentProblem.label}. ${currentProblem.title}`,
+      difficulty: currentProblem.difficulty,
+      category: currentProblem.category || '',
+      statement: currentProblem.statement || '',
+      inputFormat: currentProblem.inputFormat || '',
+      outputFormat: currentProblem.outputFormat || '',
+      constraints: currentProblem.constraints || '',
+      examples: currentProblem.examples || [],
+      starterTemplates: currentProblem.starterTemplates || {},
+      testCases: (currentProblem.testCases || []).filter((testCase) => testCase.isPublic),
       solvedCount: 0,
       acceptanceRate: 0,
-      status: activeProblem.status,
+      status: currentProblem.status,
     };
+    const timerTone = endsIn < 10 * 60 * 1000 ? 'critical' : endsIn <= 30 * 60 * 1000 ? 'warning' : 'normal';
+    const selectProblem = (index: number) => {
+      const nextProblem = (contest.problems || [])[index];
+      if (nextProblem && (canSolve || contest.status === 'Ended')) setActiveProblem(nextProblem);
+    };
+    const renderMarkdown = (content: string) => (
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeHighlight]}>
+        {content}
+      </ReactMarkdown>
+    );
     return (
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <button onClick={() => setActiveProblem(null)} className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400">
-            <ArrowLeft className="h-4 w-4" /> Back to {contest.title}
-          </button>
-          {isLive && (
-            <span className="flex items-center gap-1.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
-              <Clock className="h-3.5 w-3.5" /> {formatCountdown(endsIn)} remaining
+      <div className="contest-room h-full min-h-0 flex flex-col bg-[#f5f6fa] text-zinc-900 dark:bg-[#090b12] dark:text-zinc-100">
+        <header className="contest-header shrink-0 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#11141d]">
+          <div className="flex min-h-14 items-center justify-between gap-3 px-3 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <img src="/logo.png" alt="SkillForge Code" className="h-8 w-8 shrink-0 object-contain" />
+              <div className="min-w-0 border-l border-zinc-200 pl-3 dark:border-zinc-700">
+                <div className="truncate text-xs font-extrabold">{contest.title}</div>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                  <span className={`h-1.5 w-1.5 rounded-full ${isLive ? 'bg-rose-500 animate-pulse' : contest.status === 'Ended' ? 'bg-zinc-400' : 'bg-amber-500'}`} />
+                  {isLive ? 'Live contest' : contest.status === 'Ended' ? 'Contest ended' : 'Upcoming'}
+                </div>
+              </div>
+            </div>
+            <div className={`contest-timer timer-${timerTone} flex items-center gap-2 rounded-md px-3 py-1.5`} aria-live="off">
+              <Clock className="h-4 w-4" />
+              <div><div className="text-[9px] font-extrabold uppercase tracking-wider">{isLive ? 'Time left' : contest.status === 'Upcoming' ? 'Starts in' : 'Time left'}</div>
+                <div className="font-mono text-base font-black tabular-nums leading-tight">{formatCountdown(isLive ? endsIn : contest.status === 'Upcoming' ? startsIn : 0)}</div>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button onClick={() => setActiveProblem(null)} className="flex items-center gap-1.5 rounded-md px-2.5 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-300 dark:hover:bg-zinc-800" title="Back to contest overview">
+                <ListOrdered className="h-4 w-4" /><span className="hidden sm:inline">Problems</span>
+              </button>
+              <button onClick={onExit} className="flex items-center gap-1.5 rounded-md px-2.5 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-300 dark:hover:bg-zinc-800" title="Exit contest">
+                <ArrowLeft className="h-4 w-4" /><span className="hidden sm:inline">Exit</span>
+              </button>
+            </div>
+          </div>
+          <div className="contest-problem-nav flex items-center gap-1 overflow-x-auto border-t border-zinc-100 px-3 py-1.5 dark:border-zinc-800 sm:px-5" role="navigation" aria-label="Contest problems">
+            {(contest.problems || []).map((problem, index) => {
+              const selected = problem.problemId === currentProblem.problemId;
+              const solved = problem.status === 'Solved';
+              const attempted = problem.status === 'Attempted';
+              const Icon = solved ? CheckCircle : attempted ? CircleDot : !canSolve && contest.status !== 'Ended' ? LockKeyhole : Circle;
+              const label = solved ? 'Solved' : attempted ? 'Attempted' : !canSolve && contest.status !== 'Ended' ? 'Locked' : 'Not attempted';
+              return <button key={problem.problemId} onClick={() => selectProblem(index)} disabled={!canSolve && contest.status !== 'Ended'} aria-current={selected ? 'page' : undefined} title={`${problem.label}: ${label}`} className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${selected ? 'bg-indigo-600 text-white' : 'text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'} disabled:cursor-not-allowed disabled:opacity-50`}>
+                <span className="font-mono">{String(index + 1).padStart(2, '0')}</span><Icon className="h-3.5 w-3.5" aria-hidden="true" /><span className="sr-only">{label}</span>
+              </button>;
+            })}
+            <span className="ml-auto hidden shrink-0 items-center gap-3 text-[10px] text-zinc-500 lg:flex" aria-label="Problem statuses">
+              <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3 text-emerald-500" />Solved</span><span className="flex items-center gap-1"><CircleDot className="h-3 w-3 text-amber-500" />Attempted</span><span className="flex items-center gap-1"><Circle className="h-3 w-3" />Unattempted</span>
             </span>
-          )}
+          </div>
+        </header>
+
+        <div className="contest-desktop-hint flex items-center gap-2 border-b border-indigo-100 bg-indigo-50 px-4 py-2 text-xs text-indigo-900 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-200 md:hidden">
+          <Laptop className="h-4 w-4 shrink-0" /> For the best contest experience, use a laptop or desktop.
         </div>
-        <CodeEditor
-          problem={asCodingProblem}
-          selectedLanguage={editorLanguage}
-          onLanguageChange={setEditorLanguage}
-          contestId={contestId}
-          onSubmit={(code, status) => {
-            if (status === 'Accepted') {
-              addToast('Accepted!', 'success', `Problem ${activeProblem.label} solved. Standings will update shortly.`);
-              refreshStudent();
-              loadContest();
-            } else {
-              addToast('Not Accepted', 'error', status || 'Some test cases failed.');
-            }
-          }}
-        />
+        <main className="contest-workspace flex min-h-0 flex-1 overflow-hidden" style={{ '--problem-pane': `${splitPercent}%` } as React.CSSProperties}>
+          <section className="contest-problem-pane min-w-0 overflow-y-auto border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#10131b]" aria-label="Problem statement">
+            <div className="mx-auto max-w-3xl px-5 py-6 sm:px-7">
+              <div className="mb-5 flex items-start justify-between gap-3 border-b border-zinc-100 pb-4 dark:border-zinc-800">
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded bg-indigo-50 px-2 py-1 font-mono text-[11px] font-extrabold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{currentProblem.label}</span>
+                    <span className={`text-[10px] font-extrabold uppercase tracking-wider ${difficultyColor[currentProblem.difficulty] || 'text-zinc-500'}`}>{currentProblem.difficulty}</span>
+                    {currentProblem.category && <span className="text-[10px] font-semibold text-zinc-400">{currentProblem.category}</span>}
+                  </div>
+                  <h1 className="text-xl font-extrabold leading-tight">{currentProblem.title}</h1>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <button onClick={() => selectProblem(problemIndex - 1)} disabled={problemIndex <= 0 || (!canSolve && contest.status !== 'Ended')} className="rounded-md border border-zinc-200 p-2 text-zinc-500 hover:bg-zinc-50 disabled:opacity-35 dark:border-zinc-700 dark:hover:bg-zinc-800" title="Previous problem"><ChevronLeft className="h-4 w-4" /></button>
+                  <button onClick={() => selectProblem(problemIndex + 1)} disabled={problemIndex >= (contest.problems || []).length - 1 || (!canSolve && contest.status !== 'Ended')} className="rounded-md border border-zinc-200 p-2 text-zinc-500 hover:bg-zinc-50 disabled:opacity-35 dark:border-zinc-700 dark:hover:bg-zinc-800" title="Next problem"><ChevronRight className="h-4 w-4" /></button>
+                </div>
+              </div>
+              <article className="contest-markdown">
+                {renderMarkdown(currentProblem.statement || '')}
+                {currentProblem.inputFormat && <><h2>Input Format</h2>{renderMarkdown(currentProblem.inputFormat)}</>}
+                {currentProblem.outputFormat && <><h2>Output Format</h2>{renderMarkdown(currentProblem.outputFormat)}</>}
+                {(currentProblem.examples || []).map((example, index) => <section className="contest-example" key={`${currentProblem.problemId}-example-${index}`}>
+                  <h2>Example {index + 1}</h2><h3>Input</h3><pre><code>{example.input}</code></pre><h3>Output</h3><pre><code>{example.output}</code></pre>
+                  {example.explanation && <><h3>Explanation</h3>{renderMarkdown(example.explanation)}</>}
+                </section>)}
+                {currentProblem.constraints && <><h2>Constraints</h2>{renderMarkdown(currentProblem.constraints)}</>}
+              </article>
+            </div>
+          </section>
+          <div
+            className="contest-splitter"
+            role="separator"
+            aria-label="Resize problem and editor panels"
+            aria-orientation="vertical"
+            aria-valuenow={splitPercent}
+            tabIndex={0}
+            onPointerDown={(event) => { splitDrag.current = { startX: event.clientX, startPercent: splitPercent }; event.currentTarget.setPointerCapture(event.pointerId); }}
+            onPointerMove={(event) => { if (!splitDrag.current) return; const delta = (event.clientX - splitDrag.current.startX) / Math.max(1, event.currentTarget.parentElement?.clientWidth || 1) * 100; setSplitPercent(Math.max(30, Math.min(65, splitDrag.current.startPercent + delta))); }}
+            onPointerUp={() => { splitDrag.current = null; }}
+            onKeyDown={(event) => { if (event.key === 'ArrowLeft') setSplitPercent((value) => Math.max(30, value - 2)); if (event.key === 'ArrowRight') setSplitPercent((value) => Math.min(65, value + 2)); }}
+          />
+          <section className="contest-editor-pane min-w-0 flex-1" aria-label="Code editor">
+            <CodeEditor
+              problem={asCodingProblem}
+              selectedLanguage={editorLanguage}
+              onLanguageChange={setEditorLanguage}
+              contestId={contestId}
+              contestMode
+              onSubmit={(_code, status) => {
+                if (status === 'Accepted') {
+                  addToast('Accepted!', 'success', `Problem ${currentProblem.label} solved. Standings will update shortly.`);
+                  setActiveProblem((previous) => previous ? { ...previous, status: 'Solved' } : previous);
+                  refreshStudent();
+                  loadContest();
+                } else {
+                  setActiveProblem((previous) => previous && previous.status !== 'Solved' ? { ...previous, status: 'Attempted' } : previous);
+                  addToast('Submission judged', 'info', status || 'The judge returned a verdict.');
+                  loadContest();
+                }
+              }}
+            />
+          </section>
+        </main>
       </div>
     );
   }
