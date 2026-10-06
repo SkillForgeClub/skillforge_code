@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Trophy, Clock, ListOrdered, CheckCircle, Circle, Medal, ChevronLeft, ChevronRight, CircleDot, LockKeyhole, Laptop } from 'lucide-react';
+import React, { useState, useEffect, useRef, useDeferredValue, useMemo, useCallback } from 'react';
+import { ArrowLeft, Trophy, Clock, ListOrdered, CheckCircle, Circle, Medal, ChevronLeft, ChevronRight, CircleDot, LockKeyhole, Laptop, Users, Search, RefreshCw, XCircle, Code2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -12,8 +12,8 @@ import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import 'katex/dist/katex.min.css';
 import 'highlight.js/styles/github-dark.css';
-import { Contest, ContestProblemRef, ContestStandingEntry, CodingProblem, ProgrammingLanguage } from '../types';
-import { contestsApi, ApiError } from '../services/api';
+import { Contest, ContestProblemRef, ContestStandingEntry, CodingProblem, ProgrammingLanguage, Submission } from '../types';
+import { contestsApi, submissionsApi, ApiError } from '../services/api';
 import { CodeEditor } from '../components/CodeEditor';
 import { useAuth } from '../context/AuthContext';
 
@@ -41,13 +41,150 @@ const difficultyColor: Record<string, string> = {
   Hard: 'text-rose-600 dark:text-rose-400',
 };
 
+type StandingsFilter = 'All' | 'Top 10' | 'My Rank' | 'Solved';
+
+interface ContestStandingsProps {
+  contest: Contest;
+  standings: ContestStandingEntry[];
+  myUserId?: string;
+  isLoading: boolean;
+  hasLoaded: boolean;
+  error: string | null;
+  updatedAt: number | null;
+  onRetry: () => void;
+}
+
+const ContestStandings = React.memo<ContestStandingsProps>(({ contest, standings, myUserId, isLoading, hasLoaded, error, updatedAt, onRetry }) => {
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<StandingsFilter>('All');
+  const [page, setPage] = useState(0);
+  const [clock, setClock] = useState(Date.now());
+  const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase());
+  const visibleStandings = useMemo(() => standings.filter((entry) => {
+    if (filter === 'Top 10' && entry.rank > 10) return false;
+    if (filter === 'My Rank' && entry.userId !== myUserId) return false;
+    if (filter === 'Solved' && entry.solvedCount === 0) return false;
+    return !deferredQuery || entry.fullName.toLocaleLowerCase().includes(deferredQuery);
+  }), [standings, filter, deferredQuery, myUserId]);
+  const pageSize = 50;
+  const pageCount = Math.max(1, Math.ceil(visibleStandings.length / pageSize));
+  const activePage = Math.min(page, pageCount - 1);
+  const pageStandings = visibleStandings.slice(activePage * pageSize, (activePage + 1) * pageSize);
+
+  useEffect(() => {
+    if (!updatedAt || contest.status !== 'Live') return;
+    const interval = setInterval(() => setClock(Date.now()), 5000);
+    return () => clearInterval(interval);
+  }, [updatedAt, contest.status]);
+
+  const retryButton = <button onClick={onRetry} className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"><RefreshCw className="h-3.5 w-3.5" />Retry</button>;
+
+  if (error && !hasLoaded) {
+    return <div role="alert" className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-lg border border-rose-200 bg-white px-4 text-center dark:border-rose-900 dark:bg-[#11141d]">
+      <XCircle className="h-6 w-6 text-rose-500" /><p className="text-sm font-bold">Unable to load standings.</p>{retryButton}
+    </div>;
+  }
+
+  if (isLoading && !hasLoaded) {
+    return <div aria-label="Loading standings" className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#11141d]">
+      <div className="h-11 animate-pulse border-b border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900" />
+      {Array.from({ length: 6 }, (_, index) => <div key={index} className="flex h-14 animate-pulse items-center gap-4 border-b border-zinc-100 px-4 dark:border-zinc-800/70">
+        <span className="h-3 w-8 rounded bg-zinc-200 dark:bg-zinc-800" /><span className="h-8 w-8 rounded-full bg-zinc-200 dark:bg-zinc-800" /><span className="h-3 w-40 rounded bg-zinc-200 dark:bg-zinc-800" /><span className="ml-auto h-3 w-20 rounded bg-zinc-200 dark:bg-zinc-800" />
+      </div>)}
+    </div>;
+  }
+
+  if (standings.length === 0) {
+    return <div className="flex min-h-64 flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-white px-4 text-center dark:border-zinc-700 dark:bg-[#11141d]">
+      <Users className="mb-3 h-7 w-7 text-zinc-400" /><p className="text-sm font-bold">No participants yet.</p><p className="mt-1 text-xs text-zinc-500">Be the first to compete.</p>
+    </div>;
+  }
+
+  return <section className="space-y-3">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+          <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} placeholder="Search participant..." aria-label="Search participant" className="h-9 w-60 rounded-md border border-zinc-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-zinc-700 dark:bg-[#11141d]" />
+        </label>
+        <div className="flex rounded-md border border-zinc-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-[#11141d]" role="group" aria-label="Filter standings">
+          {(['All', 'Top 10', 'My Rank', 'Solved'] as StandingsFilter[]).map((option) => <button key={option} onClick={() => { setFilter(option); setPage(0); }} aria-pressed={filter === option} className={`rounded px-2.5 py-1.5 text-[11px] font-bold ${filter === option ? 'bg-indigo-600 text-white' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>{option}</button>)}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+        {contest.status === 'Live' ? <span className="inline-flex items-center gap-1.5 font-bold text-rose-600 dark:text-rose-400"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />LIVE</span> : <span className="inline-flex items-center gap-1.5 font-bold text-zinc-600 dark:text-zinc-300"><Trophy className="h-3.5 w-3.5 text-amber-500" />FINAL STANDINGS</span>}
+        {updatedAt && contest.status === 'Live' && <span>Updated {Math.floor((clock - updatedAt) / 1000) < 5 ? 'just now' : `${Math.floor((clock - updatedAt) / 1000)}s ago`}</span>}
+        {error && hasLoaded && <span role="status" className="text-amber-600 dark:text-amber-400">Refresh delayed</span>}
+        <button disabled title="Standings freeze is unavailable until backend support is added" className="hidden cursor-not-allowed items-center gap-1 rounded border border-zinc-200 px-2 py-1 text-[10px] font-semibold text-zinc-400 opacity-70 sm:inline-flex dark:border-zinc-700"><LockKeyhole className="h-3 w-3" />Freeze unavailable</button>
+      </div>
+    </div>
+
+    <div className="standings-scroll overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#11141d]">
+      <table className="standings-table w-full border-separate border-spacing-0 text-xs">
+        <thead className="sticky top-0 z-20 bg-zinc-50 text-[10px] font-extrabold uppercase tracking-wide text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+          <tr>
+            <th className="standings-sticky-rank w-16 px-3 py-3 text-left">Rank</th>
+            <th className="standings-sticky-participant w-60 px-3 py-3 text-left">Participant</th>
+            <th className="px-3 py-3 text-center">Solved</th>
+            {(contest.problems || []).map((problem, index) => <th key={problem.problemId} className="min-w-16 px-2 py-3 text-center" title={problem.title}>{problem.label || `P${index + 1}`}</th>)}
+            <th className="standings-sticky-points px-3 py-3 text-right">Points</th>
+            <th className="standings-sticky-penalty px-3 py-3 text-right">Penalty</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pageStandings.map((entry) => {
+            const isCurrentUser = entry.userId === myUserId;
+            const initials = entry.fullName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+            return <tr key={entry.userId} className={`standings-row ${isCurrentUser ? 'standings-current-user' : ''}`}>
+              <td className="standings-sticky-rank whitespace-nowrap px-3 py-3 font-extrabold tabular-nums">{entry.rank <= 3 && <Medal aria-hidden="true" className={`mr-1 inline h-3.5 w-3.5 ${entry.rank === 1 ? 'text-amber-500' : entry.rank === 2 ? 'text-zinc-400' : 'text-orange-700'}`} />}#{entry.rank}</td>
+              <td className="standings-sticky-participant min-w-60 px-3 py-2">
+                <div className="flex items-center gap-2.5">
+                  <span aria-hidden="true" className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold ${isCurrentUser ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'}`}>{initials || '?'}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-bold">{entry.fullName}</span>
+                    {isCurrentUser && <span className="text-[9px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">You</span>}
+                  </span>
+                </div>
+              </td>
+              <td className="px-3 py-3 text-center font-bold tabular-nums">{entry.solvedCount}</td>
+              {(contest.problems || []).map((problem) => {
+                const cell = entry.perProblem[problem.problemId];
+                if (cell?.solved) return <td key={problem.problemId} className="px-2 py-3 text-center"><span title={`Accepted in ${cell.penaltyMinutes} minutes`} aria-label={`Accepted, ${cell.penaltyMinutes} minutes`} className="inline-flex items-center gap-1 whitespace-nowrap font-bold text-emerald-700 dark:text-emerald-400"><CheckCircle className="h-3.5 w-3.5" /><span>+{cell.penaltyMinutes}m</span></span></td>;
+                if (cell) return <td key={problem.problemId} className="px-2 py-3 text-center"><span title={`${cell.attempts} submission${cell.attempts === 1 ? '' : 's'} recorded; per-submission verdict is unavailable`} aria-label={`Attempted, ${cell.attempts} submission${cell.attempts === 1 ? '' : 's'}`} className="inline-flex items-center gap-1 whitespace-nowrap font-bold text-amber-700 dark:text-amber-400"><CircleDot className="h-3.5 w-3.5" /><span>{cell.attempts}</span></span></td>;
+                return <td key={problem.problemId} className="px-2 py-3 text-center text-zinc-400" aria-label="Not attempted" title="Not attempted">—</td>;
+              })}
+              <td className="standings-sticky-points px-3 py-3 text-right font-extrabold tabular-nums">{entry.totalPoints}</td>
+              <td className="standings-sticky-penalty whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums text-zinc-500">{entry.totalPenaltyMinutes}m</td>
+            </tr>;
+          })}
+          {visibleStandings.length === 0 && <tr><td colSpan={(contest.problems?.length || 0) + 5} className="px-4 py-10 text-center text-xs font-semibold text-zinc-500">No participants match this search or filter.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+    {visibleStandings.length > pageSize && <div className="flex items-center justify-between text-[11px] text-zinc-500">
+      <span>Showing {activePage * pageSize + 1}–{Math.min((activePage + 1) * pageSize, visibleStandings.length)} of {visibleStandings.length}</span>
+      <div className="flex items-center gap-2"><button disabled={activePage === 0} onClick={() => setPage(activePage - 1)} className="rounded border border-zinc-200 px-2.5 py-1.5 font-bold disabled:opacity-40 dark:border-zinc-700">Previous</button><span>Page {activePage + 1} of {pageCount}</span><button disabled={activePage >= pageCount - 1} onClick={() => setPage(activePage + 1)} className="rounded border border-zinc-200 px-2.5 py-1.5 font-bold disabled:opacity-40 dark:border-zinc-700">Next</button></div>
+    </div>}
+  </section>;
+});
+
 export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemViewChange, onNavigate, onExit, addToast }) => {
-  const { role, refreshStudent } = useAuth();
+  const { role, student, refreshStudent } = useAuth();
   const [contest, setContest] = useState<Contest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [tab, setTab] = useState<'problems' | 'standings'>('problems');
+  const [tab, setTab] = useState<'overview' | 'problems' | 'standings' | 'submissions'>('standings');
   const [standings, setStandings] = useState<ContestStandingEntry[]>([]);
+  const [standingsLoading, setStandingsLoading] = useState(true);
+  const [standingsLoaded, setStandingsLoaded] = useState(false);
+  const [standingsError, setStandingsError] = useState<string | null>(null);
+  const [standingsUpdatedAt, setStandingsUpdatedAt] = useState<number | null>(null);
+  const [standingsRetry, setStandingsRetry] = useState(0);
+  const [mySubmissions, setMySubmissions] = useState<Submission[]>([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [submissionsError, setSubmissionsError] = useState(false);
+  const contestStatus = contest?.status;
   const [now, setNow] = useState(Date.now());
+  const statusRefreshRequested = useRef(false);
   const [activeProblem, setActiveProblem] = useState<ContestProblemRef | null>(null);
   const [editorLanguage, setEditorLanguage] = useState<ProgrammingLanguage>('Python');
   const [splitPercent, setSplitPercent] = useState(42);
@@ -68,16 +205,72 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
   }, [contestId]);
 
   useEffect(() => {
+    setIsLoading(true);
+    setContest(null);
+    setActiveProblem(null);
+    setTab('standings');
+    setStandings([]);
+    setStandingsLoading(true);
+    setStandingsLoaded(false);
+    setStandingsError(null);
+    setStandingsUpdatedAt(null);
+    setMySubmissions([]);
+    statusRefreshRequested.current = false;
+  }, [contestId]);
+
+  const contestEndTime = contest ? new Date(contest.endTime).getTime() : null;
+  useEffect(() => {
+    if (contestStatus !== 'Live' || contestEndTime === null || now < contestEndTime || statusRefreshRequested.current) return;
+    statusRefreshRequested.current = true;
+    loadContest();
+  }, [contestStatus, contestEndTime, now, contestId]);
+
+  useEffect(() => {
     onProblemViewChange(Boolean(activeProblem));
   }, [activeProblem, onProblemViewChange]);
 
   useEffect(() => {
-    if (tab === 'standings' && contest?.status !== 'Upcoming') {
-      contestsApi.leaderboard(contestId).then(setStandings).catch(() => {});
-      const poll = setInterval(() => contestsApi.leaderboard(contestId).then(setStandings).catch(() => {}), 10000);
-      return () => clearInterval(poll);
-    }
-  }, [tab, contestId, contest?.status]);
+    if (tab !== 'standings' || !contestStatus || contestStatus === 'Upcoming') return;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const result = await contestsApi.leaderboard(contestId);
+        if (cancelled) return;
+        setStandings(result);
+        setStandingsError(null);
+        setStandingsLoaded(true);
+        setStandingsUpdatedAt(Date.now());
+      } catch (err) {
+        if (!cancelled) setStandingsError(err instanceof ApiError ? err.message : 'Could not refresh standings.');
+      } finally {
+        if (!cancelled) setStandingsLoading(false);
+      }
+    };
+    if (!standingsLoaded) setStandingsLoading(true);
+    void refresh();
+    const poll = contestStatus === 'Live' ? setInterval(() => void refresh(), 10000) : undefined;
+    return () => {
+      cancelled = true;
+      if (poll) clearInterval(poll);
+    };
+  }, [tab, contestId, contestStatus, standingsRetry]);
+
+  useEffect(() => {
+    if (tab !== 'submissions' || !contest) return;
+    let cancelled = false;
+    setSubmissionsLoading(true);
+    setSubmissionsError(false);
+    submissionsApi.mine().then((rows) => {
+      if (cancelled) return;
+      const problemIds = new Set((contest.problems || []).map((problem) => problem.problemId));
+      setMySubmissions(rows.filter((submission) => problemIds.has(submission.problemId)));
+    }).catch(() => {
+      if (!cancelled) setSubmissionsError(true);
+    }).finally(() => {
+      if (!cancelled) setSubmissionsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [tab, contest]);
 
   const handleRegister = async () => {
     try {
@@ -88,6 +281,12 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
       addToast('Registration Failed', 'error', err instanceof ApiError ? err.message : 'Could not register.');
     }
   };
+
+  const retryStandingsLoad = useCallback(() => {
+    if (!standingsLoaded) setStandingsLoading(true);
+    setStandingsError(null);
+    setStandingsRetry((value) => value + 1);
+  }, [standingsLoaded]);
 
   if (isLoading) {
     return <div className="max-w-5xl mx-auto px-4 py-16 text-center text-xs font-bold text-zinc-400">Loading contest...</div>;
@@ -247,158 +446,73 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
     );
   }
 
+  const myStanding = student ? standings.find((entry) => entry.userId === student.id) : undefined;
+  const problemCount = contest.problems?.length ?? contest.problemCount;
+  const timerTone = endsIn < 10 * 60 * 1000 ? 'critical' : endsIn <= 30 * 60 * 1000 ? 'warning' : 'normal';
+  const timeLabel = contest.status === 'Live' ? formatCountdown(endsIn) : contest.status === 'Upcoming' ? formatCountdown(startsIn) : 'Finished';
+  const contestTabs: { id: typeof tab; label: string; icon: typeof Trophy }[] = [
+    { id: 'overview', label: 'Overview', icon: Code2 },
+    { id: 'problems', label: 'Problems', icon: Circle },
+    { id: 'standings', label: 'Standings', icon: ListOrdered },
+    { id: 'submissions', label: 'My Submissions', icon: CheckCircle },
+  ];
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      <button onClick={onExit} className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400">
-        <ArrowLeft className="h-4 w-4" /> All Contests
-      </button>
-
-      <div className="p-6 rounded-3xl bg-white dark:bg-[#141414] border border-zinc-200 dark:border-zinc-800/80">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-lg font-black mb-1">{contest.title}</h1>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xl">{contest.description}</p>
-          </div>
-          <div className="text-right shrink-0">
-            {contest.status === 'Upcoming' && (
-              <>
-                <div className="text-[10px] font-bold uppercase text-zinc-400 mb-0.5">Starts In</div>
-                <div className="text-lg font-mono font-black text-amber-600 dark:text-amber-400">{formatCountdown(startsIn)}</div>
-              </>
-            )}
-            {contest.status === 'Live' && (
-              <>
-                <div className="text-[10px] font-bold uppercase text-zinc-400 mb-0.5">Time Remaining</div>
-                <div className="text-lg font-mono font-black text-emerald-600 dark:text-emerald-400">{formatCountdown(endsIn)}</div>
-              </>
-            )}
-            {contest.status === 'Ended' && (
-              <div className="text-xs font-black text-zinc-400">Contest Ended</div>
-            )}
-          </div>
-        </div>
-
-        {role === 'Student' && contest.status !== 'Ended' && !contest.isRegistered && (
-          <button onClick={handleRegister} className="mt-4 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold">
-            Register for this Contest
-          </button>
-        )}
-        {role === 'Student' && contest.isRegistered && (
-          <span className="mt-4 inline-block text-xs font-black text-emerald-600 dark:text-emerald-400">✓ You are registered</span>
-        )}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-zinc-200 dark:border-zinc-800">
-        <button
-          onClick={() => setTab('problems')}
-          className={`px-4 py-2 text-xs font-black border-b-2 -mb-px transition-colors ${tab === 'problems' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-zinc-400'}`}
-        >
-          Problems
-        </button>
-        <button
-          onClick={() => setTab('standings')}
-          className={`px-4 py-2 text-xs font-black border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${tab === 'standings' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-zinc-400'}`}
-        >
-          <ListOrdered className="h-3.5 w-3.5" /> Live Standings
-        </button>
-      </div>
-
-      {tab === 'problems' && (
-        <div className="space-y-2">
-          {(contest.problems || []).map((p) => (
-            <button
-              key={p.problemId}
-              disabled={!canSolve && contest.status !== 'Ended'}
-              onClick={() => canSolve || contest.status === 'Ended' ? setActiveProblem(p) : undefined}
-              className={`w-full text-left flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#141414] border border-zinc-200 dark:border-zinc-800/80 ${
-                canSolve || contest.status === 'Ended' ? 'hover:border-indigo-400 dark:hover:border-indigo-500/50 cursor-pointer' : 'opacity-60 cursor-not-allowed'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                {p.status === 'Solved' ? (
-                  <CheckCircle className="h-4.5 w-4.5 text-emerald-500 shrink-0" />
-                ) : (
-                  <Circle className="h-4.5 w-4.5 text-zinc-300 dark:text-zinc-700 shrink-0" />
-                )}
-                <div>
-                  <div className="text-sm font-extrabold">
-                    <span className="text-indigo-500 mr-1.5">{p.label}.</span>
-                    {contest.status === 'Upcoming' ? 'Hidden until contest starts' : p.title}
-                  </div>
-                  {contest.status !== 'Upcoming' && (
-                    <div className={`text-[10px] font-bold uppercase ${difficultyColor[p.difficulty] || 'text-zinc-400'}`}>{p.difficulty}</div>
-                  )}
-                </div>
+    <div className="contest-hub min-h-screen bg-[#f5f6fa] px-3 py-4 text-zinc-900 dark:bg-[#090b12] dark:text-zinc-100 sm:px-5 sm:py-6">
+      <div className="mx-auto max-w-[1500px] space-y-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-4 dark:border-zinc-800">
+          <div className="flex min-w-0 items-center gap-3">
+            <img src="/logo.png" alt="SkillForge Code" className="h-9 w-9 shrink-0 object-contain" />
+            <div className="shrink-0 leading-tight"><span className="block text-sm font-black">SkillForge</span><span className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">Code</span></div>
+            <div className="min-w-0 border-l border-zinc-200 pl-3 dark:border-zinc-700">
+              <h1 className="truncate text-sm font-extrabold sm:text-base">{contest.title}</h1>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                <span className={`h-1.5 w-1.5 rounded-full ${isLive ? 'animate-pulse bg-rose-500' : contest.status === 'Upcoming' ? 'bg-amber-500' : 'bg-zinc-400'}`} />
+                {isLive ? 'Live' : contest.status === 'Ended' ? 'Contest finished' : 'Upcoming'}
               </div>
-              <span className="text-xs font-black text-zinc-400">{p.points} pts</span>
-            </button>
-          ))}
-          {(contest.problems || []).length === 0 && (
-            <div className="text-center py-12 text-xs font-bold text-zinc-400">No problems have been added to this contest yet.</div>
-          )}
-          {!canSolve && contest.status === 'Live' && role === 'Student' && (
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold text-center pt-2">Register above to unlock these problems.</p>
-          )}
-        </div>
-      )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className={`contest-timer timer-${timerTone} flex items-center gap-2 rounded-md px-3 py-1.5`}>
+              {contest.status === 'Ended' ? <Trophy className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+              <div><div className="text-[9px] font-extrabold uppercase tracking-wider">{contest.status === 'Upcoming' ? 'Starts in' : contest.status === 'Ended' ? 'Status' : 'Remaining'}</div><div className="font-mono text-sm font-black tabular-nums">{timeLabel}</div></div>
+            </div>
+            <button onClick={onExit} title="Exit contest" className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-bold text-zinc-600 hover:border-indigo-300 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-[#11141d] dark:text-zinc-300 dark:hover:text-indigo-300"><ArrowLeft className="h-4 w-4" /><span className="hidden sm:inline">Exit</span></button>
+          </div>
+        </header>
 
-      {tab === 'standings' && contest.status === 'Upcoming' && (
-        <div className="text-center py-16 bg-white dark:bg-[#141414] border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl">
-          <Clock className="h-6 w-6 mx-auto mb-3 text-zinc-300 dark:text-zinc-700" />
-          <p className="text-xs font-bold text-zinc-400">Standings will appear once the contest goes live.</p>
-        </div>
-      )}
+        <nav className="contest-tabs flex gap-1 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800" aria-label="Contest navigation">
+          {contestTabs.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined} className={`flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-extrabold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${tab === id ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300' : 'border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'}`}><Icon className="h-3.5 w-3.5" />{label}</button>)}
+        </nav>
 
-      {tab === 'standings' && contest.status !== 'Upcoming' && (
-        <div className="rounded-2xl bg-white dark:bg-[#141414] border border-zinc-200 dark:border-zinc-800/80 overflow-hidden">
-          <table className="w-full text-xs">
-            <thead className="bg-zinc-50 dark:bg-zinc-900/60 text-[10px] uppercase text-zinc-400 font-black">
-              <tr>
-                <th className="text-left py-2.5 px-4">Rank</th>
-                <th className="text-left py-2.5 px-4">Participant</th>
-                <th className="text-center py-2.5 px-4">Solved</th>
-                {(contest.problems || []).map((p) => (
-                  <th key={p.problemId} className="text-center py-2.5 px-2">{p.label}</th>
-                ))}
-                <th className="text-right py-2.5 px-4">Points</th>
-                <th className="text-right py-2.5 px-4">Penalty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {standings.map((s) => (
-                <tr key={s.userId} className="border-t border-zinc-100 dark:border-zinc-800/70">
-                  <td className="py-2.5 px-4 font-black">
-                    {s.rank <= 3 ? <Medal className={`h-3.5 w-3.5 inline mr-1 ${s.rank === 1 ? 'text-amber-500' : s.rank === 2 ? 'text-zinc-400' : 'text-orange-700'}`} /> : null}
-                    {s.rank}
-                  </td>
-                  <td className="py-2.5 px-4 font-bold">{s.fullName} <span className="text-zinc-400 font-medium">({s.rollNumber})</span></td>
-                  <td className="py-2.5 px-4 text-center font-bold">{s.solvedCount}</td>
-                  {(contest.problems || []).map((p) => {
-                    const cell = s.perProblem[p.problemId];
-                    return (
-                      <td key={p.problemId} className="py-2.5 px-2 text-center">
-                        {cell?.solved ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 font-black">+{cell.penaltyMinutes}m</span>
-                        ) : cell ? (
-                          <span className="text-rose-500 font-black">-{cell.attempts}</span>
-                        ) : (
-                          <span className="text-zinc-300 dark:text-zinc-700">·</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className="py-2.5 px-4 text-right font-black">{s.totalPoints}</td>
-                  <td className="py-2.5 px-4 text-right text-zinc-400 font-bold">{s.totalPenaltyMinutes}m</td>
-                </tr>
-              ))}
-              {standings.length === 0 && (
-                <tr><td colSpan={20} className="text-center py-10 text-zinc-400 font-bold">No registered participants yet.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+        <section className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Contest statistics">
+          <div className="contest-stat"><span>Participants</span><strong>{standingsLoaded ? standings.length : contest.registeredCount}</strong><Users className="h-4 w-4" /></div>
+          <div className="contest-stat"><span>Problems</span><strong>{problemCount}</strong><Code2 className="h-4 w-4" /></div>
+          <div className="contest-stat"><span>{contest.status === 'Upcoming' ? 'Starts in' : 'Remaining time'}</span><strong className="font-mono">{timeLabel}</strong><Clock className="h-4 w-4" /></div>
+          <div className="contest-stat contest-rank-stat"><span>Your rank</span><strong>{myStanding ? `#${myStanding.rank}` : '—'}</strong><small>{myStanding ? `${myStanding.solvedCount} solved · ${myStanding.totalPoints} pts · ${myStanding.totalPenaltyMinutes}m` : student ? 'Not ranked yet' : 'Sign in to see your rank'}</small></div>
+        </section>
+
+        {role === 'Student' && contest.status !== 'Ended' && !contest.isRegistered && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30"><p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Register to access contest problems and participate in standings.</p><button onClick={handleRegister} className="rounded-md bg-indigo-600 px-3 py-2 text-xs font-extrabold text-white hover:bg-indigo-700">Register for contest</button></div>}
+        {role === 'Student' && contest.isRegistered && <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400"><CheckCircle className="mr-1 inline h-3.5 w-3.5" />You are registered</p>}
+
+        {tab === 'overview' && <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-[#11141d]"><h2 className="text-sm font-extrabold">About this contest</h2><p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">{contest.description || 'No contest description provided.'}</p><div className="mt-4 flex flex-wrap gap-5 text-[11px] text-zinc-500"><span>Starts <strong className="text-zinc-800 dark:text-zinc-200">{new Date(contest.startTime).toLocaleString()}</strong></span><span>Ends <strong className="text-zinc-800 dark:text-zinc-200">{new Date(contest.endTime).toLocaleString()}</strong></span></div></section>}
+
+        {tab === 'problems' && <div className="space-y-2">
+          {(contest.problems || []).map((problem) => <button key={problem.problemId} disabled={!canSolve && contest.status !== 'Ended'} onClick={() => canSolve || contest.status === 'Ended' ? setActiveProblem(problem) : undefined} className={`flex w-full items-center justify-between rounded-md border border-zinc-200 bg-white p-4 text-left dark:border-zinc-800 dark:bg-[#11141d] ${canSolve || contest.status === 'Ended' ? 'hover:border-indigo-400' : 'cursor-not-allowed opacity-60'}`}>
+            <span className="flex items-center gap-3">{problem.status === 'Solved' ? <CheckCircle className="h-4 w-4 shrink-0 text-emerald-500" /> : problem.status === 'Attempted' ? <CircleDot className="h-4 w-4 shrink-0 text-amber-500" /> : <Circle className="h-4 w-4 shrink-0 text-zinc-400" />}<span><span className="block text-sm font-extrabold"><span className="mr-1.5 text-indigo-600 dark:text-indigo-400">{problem.label}.</span>{contest.status === 'Upcoming' ? 'Hidden until contest starts' : problem.title}</span>{contest.status !== 'Upcoming' && <span className={`text-[10px] font-bold uppercase ${difficultyColor[problem.difficulty] || 'text-zinc-400'}`}>{problem.difficulty}</span>}</span></span>
+            <span className="text-xs font-black text-zinc-500">{problem.points} pts</span>
+          </button>)}
+          {(contest.problems || []).length === 0 && <div className="rounded-md border border-dashed border-zinc-300 py-12 text-center text-xs font-semibold text-zinc-500 dark:border-zinc-700">No problems have been added to this contest yet.</div>}
+        </div>}
+
+        {tab === 'standings' && contest.status === 'Upcoming' && <div className="flex min-h-56 flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-white text-center dark:border-zinc-700 dark:bg-[#11141d]"><Clock className="mb-3 h-6 w-6 text-zinc-400" /><p className="text-sm font-bold">Standings open when the contest goes live.</p></div>}
+        {tab === 'standings' && contest.status !== 'Upcoming' && <ContestStandings contest={contest} standings={standings} myUserId={student?.id} isLoading={standingsLoading} hasLoaded={standingsLoaded} error={standingsError} updatedAt={standingsUpdatedAt} onRetry={retryStandingsLoad} />}
+
+        {tab === 'submissions' && <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#11141d]">
+          <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800"><h2 className="text-xs font-extrabold">My submissions</h2><span className="text-[10px] text-zinc-500">Recent submissions on problems in this contest</span></div>
+          {submissionsLoading ? <div className="space-y-3 p-5">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-8 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />)}</div> : submissionsError ? <p role="alert" className="px-4 py-10 text-center text-xs font-semibold text-rose-600">Unable to load your submissions.</p> : mySubmissions.length === 0 ? <p className="px-4 py-10 text-center text-xs font-semibold text-zinc-500">No submissions for this contest yet.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[680px] text-xs"><thead className="bg-zinc-50 text-[10px] font-extrabold uppercase text-zinc-500 dark:bg-zinc-900"><tr><th className="px-4 py-3 text-left">Problem</th><th className="px-4 py-3 text-left">Verdict</th><th className="px-4 py-3 text-left">Language</th><th className="px-4 py-3 text-left">Submitted</th><th className="px-4 py-3 text-right">Runtime</th><th className="px-4 py-3 text-right">Memory</th></tr></thead><tbody>{mySubmissions.map((submission) => <tr key={submission.id} className="border-t border-zinc-100 dark:border-zinc-800"><td className="px-4 py-3 font-bold">{contest.problems?.find((problem) => problem.problemId === submission.problemId)?.label || submission.problemTitle}</td><td className="px-4 py-3 font-bold">{submission.status}</td><td className="px-4 py-3">{submission.language}</td><td className="px-4 py-3 text-zinc-500">{new Date(submission.submittedAt).toLocaleString()}</td><td className="px-4 py-3 text-right tabular-nums">{submission.executionTimeMs} ms</td><td className="px-4 py-3 text-right tabular-nums">{(submission.memoryKb / 1024).toFixed(1)} MB</td></tr>)}</tbody></table></div>}
+        </section>}
+      </div>
     </div>
   );
 };

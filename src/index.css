@@ -213,6 +213,186 @@
   line-height: 1.65;
 }
 
+.contest-hub {
+  --standings-border: #e7e8ed;
+}
+
+.contest-stat {
+  position: relative;
+  display: flex;
+  min-height: 82px;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px solid #e4e5eb;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0.7rem 0.9rem;
+}
+
+.dark .contest-stat {
+  border-color: #292d38;
+  background: #11141d;
+}
+
+.contest-stat > span {
+  color: #717888;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.contest-stat > strong {
+  overflow: hidden;
+  margin-top: 0.25rem;
+  font-size: 17px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contest-stat > svg {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.85rem;
+  color: #7770db;
+}
+
+.contest-stat > small {
+  overflow: hidden;
+  margin-top: 0.2rem;
+  color: #717888;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contest-rank-stat {
+  border-color: #d7d3ff;
+  background: #f8f7ff;
+}
+
+.dark .contest-rank-stat {
+  border-color: #403c69;
+  background: #171629;
+}
+
+.standings-scroll {
+  max-height: min(68vh, 760px);
+  overscroll-behavior: contain;
+}
+
+.standings-table {
+  min-width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.standings-table th,
+.standings-table td {
+  border-bottom: 1px solid #f0f0f3;
+}
+
+.dark .standings-table th,
+.dark .standings-table td {
+  border-bottom-color: #242833;
+}
+
+.standings-row td {
+  background: #fff;
+  transition: background-color 160ms ease;
+}
+
+.standings-row:hover td {
+  background: #f8f8fc;
+}
+
+.dark .standings-row td {
+  background: #11141d;
+}
+
+.dark .standings-row:hover td {
+  background: #191d28;
+}
+
+.standings-row.standings-current-user td {
+  background: #f4f2ff;
+}
+
+.dark .standings-row.standings-current-user td {
+  background: #211f35;
+}
+
+.standings-sticky-rank,
+.standings-sticky-participant,
+.standings-sticky-points,
+.standings-sticky-penalty {
+  position: sticky;
+  z-index: 5;
+}
+
+.standings-sticky-rank {
+  left: 0;
+  min-width: 64px;
+  box-shadow: 1px 0 0 var(--standings-border);
+}
+
+.standings-sticky-participant {
+  left: 64px;
+  box-shadow: 1px 0 0 var(--standings-border), 8px 0 10px -10px rgb(15 23 42 / 30%);
+}
+
+.standings-sticky-points {
+  right: 72px;
+  box-shadow: -1px 0 0 var(--standings-border), -8px 0 10px -10px rgb(15 23 42 / 25%);
+}
+
+.standings-sticky-penalty {
+  right: 0;
+  box-shadow: -1px 0 0 var(--standings-border);
+}
+
+.standings-table thead .standings-sticky-rank,
+.standings-table thead .standings-sticky-participant,
+.standings-table thead .standings-sticky-points,
+.standings-table thead .standings-sticky-penalty {
+  z-index: 25;
+  background: #f4f5f8;
+}
+
+.dark .standings-table thead .standings-sticky-rank,
+.dark .standings-table thead .standings-sticky-participant,
+.dark .standings-table thead .standings-sticky-points,
+.dark .standings-table thead .standings-sticky-penalty {
+  background: #181b25;
+}
+
+.standings-row:hover .standings-sticky-rank,
+.standings-row:hover .standings-sticky-participant,
+.standings-row:hover .standings-sticky-points,
+.standings-row:hover .standings-sticky-penalty {
+  background: #f8f8fc;
+}
+
+.standings-row.standings-current-user .standings-sticky-rank,
+.standings-row.standings-current-user .standings-sticky-participant,
+.standings-row.standings-current-user .standings-sticky-points,
+.standings-row.standings-current-user .standings-sticky-penalty {
+  background: #f4f2ff;
+}
+
+.dark .standings-row:hover .standings-sticky-rank,
+.dark .standings-row:hover .standings-sticky-participant,
+.dark .standings-row:hover .standings-sticky-points,
+.dark .standings-row:hover .standings-sticky-penalty {
+  background: #191d28;
+}
+
+.dark .standings-row.standings-current-user .standings-sticky-rank,
+.dark .standings-row.standings-current-user .standings-sticky-participant,
+.dark .standings-row.standings-current-user .standings-sticky-points,
+.dark .standings-row.standings-current-user .standings-sticky-penalty {
+  background: #211f35;
+}
+
 .dark .contest-markdown pre {
   border-color: #2b3040;
   background: #151923;
@@ -288,6 +468,30 @@
   }
 
   .contest-timer > div > div:last-child {
+    font-size: 14px;
+  }
+
+  .standings-scroll {
+    max-height: 65vh;
+  }
+
+  .standings-sticky-rank {
+    min-width: 56px;
+    width: 56px;
+  }
+
+  .standings-sticky-participant {
+    left: 56px;
+    min-width: 180px;
+    width: 180px;
+  }
+
+  .contest-stat {
+    min-height: 74px;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .contest-stat > strong {
     font-size: 14px;
   }
 }
