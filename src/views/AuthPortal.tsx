@@ -24,7 +24,7 @@ interface AuthPortalProps {
   initialMode: 'login' | 'register' | 'forgot';
   onAuthSuccess: (role: 'Student' | 'Admin', name: string) => void;
   onNavigate: (view: string) => void;
-  addToast: (title: string, type: 'success' | 'error' | 'warning' | 'info', desc?: string) => void;
+  addToast: (title: string, type: 'success' | 'error' | 'warning' | 'info', desc?: string, duration?: number) => void;
 }
 
 export const AuthPortal: React.FC<AuthPortalProps> = ({

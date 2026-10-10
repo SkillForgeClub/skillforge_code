@@ -12,7 +12,7 @@ import { useAuth } from '../context/AuthContext';
 interface ContestHubProps {
   onNavigate: (view: string) => void;
   onEnterContest: (contestId: string) => void;
-  addToast: (title: string, type: any, desc?: string) => void;
+  addToast: (title: string, type: any, desc?: string, duration?: number) => void;
 }
 
 function formatCountdown(ms: number): string {
@@ -136,7 +136,9 @@ export const ContestHub: React.FC<ContestHubProps> = ({ onNavigate, onEnterConte
                     )}
 
                     <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                      {role === 'Student' && contest.status !== 'Ended' ? (
+                      {role === 'Student' && contest.status === 'Live' ? (
+                        <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">Join Contest</span>
+                      ) : role === 'Student' && contest.status !== 'Ended' ? (
                         contest.isRegistered ? (
                           <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">✓ Registered</span>
                         ) : (

@@ -22,7 +22,7 @@ interface ContestRoomProps {
   onProblemViewChange: (active: boolean) => void;
   onNavigate: (view: string) => void;
   onExit: () => void;
-  addToast: (title: string, type: any, desc?: string) => void;
+  addToast: (title: string, type: any, desc?: string, duration?: number) => void;
 }
 
 function formatCountdown(ms: number): string {
@@ -226,6 +226,25 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
   }, [contestStatus, contestEndTime, now, contestId]);
 
   useEffect(() => {
+    if (contestStatus !== 'Ended' || contest?.profilePointsAwarded) return;
+
+    const pollSettlement = () => {
+      contestsApi.get(contestId).then(setContest).catch((err) => {
+        addToast('Could Not Refresh Contest', 'error', err instanceof ApiError ? err.message : 'Server error.');
+      });
+    };
+    const poll = window.setInterval(pollSettlement, 5000);
+    return () => window.clearInterval(poll);
+  }, [contest?.profilePointsAwarded, contestId, contestStatus]);
+
+  useEffect(() => {
+    if (role !== 'Student' || !contest?.profilePointsAwarded) return;
+    refreshStudent().catch((err) => {
+      addToast('Could Not Refresh Profile', 'error', err instanceof ApiError ? err.message : 'Server error.');
+    });
+  }, [addToast, contest?.profilePointsAwarded, refreshStudent, role]);
+
+  useEffect(() => {
     onProblemViewChange(Boolean(activeProblem));
   }, [activeProblem, onProblemViewChange]);
 
@@ -330,7 +349,7 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
   const startsIn = new Date(contest.startTime).getTime() - now;
   const endsIn = new Date(contest.endTime).getTime() - now;
   const isLive = contest.status === 'Live';
-  const canSolve = isLive && contest.isRegistered;
+  const canSolve = isLive || contest.status === 'Ended';
 
   // Active problem solving view
   if (activeProblem) {
@@ -525,8 +544,8 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
           <div className="contest-stat contest-rank-stat"><span>Your rank</span><strong>{myStanding ? `#${myStanding.rank}` : '—'}</strong><small>{myStanding ? `${myStanding.solvedCount} solved · ${myStanding.totalPoints} pts · ${myStanding.totalPenaltyMinutes}m` : student ? 'Not ranked yet' : 'Sign in to see your rank'}</small></div>
         </section>
 
-        {role === 'Student' && contest.status !== 'Ended' && !contest.isRegistered && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30"><p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Register to access contest problems and participate in standings.</p><button onClick={handleRegister} className="rounded-md bg-indigo-600 px-3 py-2 text-xs font-extrabold text-white hover:bg-indigo-700">Register for contest</button></div>}
-        {role === 'Student' && contest.isRegistered && <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400"><CheckCircle className="mr-1 inline h-3.5 w-3.5" />You are registered</p>}
+        {role === 'Student' && contest.status === 'Upcoming' && !contest.isRegistered && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30"><p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Register to access contest problems and participate in standings.</p><button onClick={handleRegister} className="rounded-md bg-indigo-600 px-3 py-2 text-xs font-extrabold text-white hover:bg-indigo-700">Register for contest</button></div>}
+        {role === 'Student' && contest.isRegistered && contest.status !== 'Live' && <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400"><CheckCircle className="mr-1 inline h-3.5 w-3.5" />You are registered</p>}
 
         {tab === 'overview' && <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-[#11141d]"><h2 className="text-sm font-extrabold">About this contest</h2><p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">{contest.description || 'No contest description provided.'}</p><div className="mt-4 flex flex-wrap gap-5 text-[11px] text-zinc-500"><span>Starts <strong className="text-zinc-800 dark:text-zinc-200">{new Date(contest.startTime).toLocaleString()}</strong></span><span>Ends <strong className="text-zinc-800 dark:text-zinc-200">{new Date(contest.endTime).toLocaleString()}</strong></span></div></section>}
 

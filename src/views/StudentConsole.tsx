@@ -26,7 +26,7 @@ import { submissionsApi, quizzesApi, problemsApi, ApiError, studyMaterialsApi } 
 
 interface StudentConsoleProps {
   onNavigate: (view: string) => void;
-  addToast: (title: string, type: any, desc?: string) => void;
+  addToast: (title: string, type: any, desc?: string, duration?: number) => void;
 }
 
 interface CoreAchievementBadge {

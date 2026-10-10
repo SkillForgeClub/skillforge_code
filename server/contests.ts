@@ -8,6 +8,7 @@ import express from 'express';
 import crypto from 'crypto';
 import { db } from './db.js';
 import { requireAuth, requireAdmin, optionalAuth, AuthedRequest } from './auth.js';
+import { settleCompletedContestPoints } from './contestPoints.js';
 
 export const contestsRouter = express.Router();
 
@@ -83,6 +84,7 @@ async function toContestSummary(row: any, userId?: string) {
     startTime: row.start_time,
     endTime: row.end_time,
     status: contestStatus(row),
+    profilePointsAwarded: Boolean(row.profile_points_awarded_at),
     problemCount,
     registeredCount,
     isRegistered,
@@ -103,16 +105,21 @@ contestsRouter.get('/:id', optionalAuth, async (req: AuthedRequest, res) => {
   const row = await db.prepare(`SELECT * FROM contests WHERE id=?`).get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Contest not found.' });
 
-  const status = contestStatus(row);
+  if (contestStatus(row) === 'Ended') {
+    await settleCompletedContestPoints(row.id);
+  }
+
+  const updatedRow = await db.prepare(`SELECT * FROM contests WHERE id=?`).get(req.params.id);
+  const status = contestStatus(updatedRow);
   const userId = req.user?.role === 'student' ? req.user.id : undefined;
-  const isRegistered = userId ? !!(await db.prepare(`SELECT 1 FROM contest_registrations WHERE contest_id=? AND user_id=?`).get(row.id, userId)) : false;
+  const isRegistered = userId ? !!(await db.prepare(`SELECT 1 FROM contest_registrations WHERE contest_id=? AND user_id=?`).get(updatedRow.id, userId)) : false;
   const isAdmin = req.user?.role === 'admin';
 
   const problemRows = await db.prepare(`
     SELECT cp.*, p.title, p.difficulty, p.category, p.statement, p.input_format, p.output_format, p.constraints, p.examples, p.starter_templates
     FROM contest_problems cp JOIN problems p ON p.id = cp.problem_id
     WHERE cp.contest_id=? ORDER BY cp.ord ASC
-  `).all(req.params.id);
+  `).all(updatedRow.id);
 
   // Before the contest starts (and unless you're an admin), problems are listed but not revealed.
   const revealDetails = status !== 'Upcoming' || isAdmin;
@@ -120,10 +127,10 @@ contestsRouter.get('/:id', optionalAuth, async (req: AuthedRequest, res) => {
   const problems = await Promise.all(problemRows.map(async (p: any) => {
     let solveStatus: 'Solved' | 'Attempted' | 'Unsolved' = 'Unsolved';
     if (userId) {
-      const solved = await db.prepare(`SELECT 1 FROM submissions WHERE user_id=? AND problem_id=? AND contest_id=? AND status='Accepted' AND submitted_at>=? AND submitted_at<=? LIMIT 1`).get(userId, p.problem_id, row.id, row.start_time, row.end_time);
+      const solved = await db.prepare(`SELECT 1 FROM submissions WHERE user_id=? AND problem_id=? AND contest_id=? AND status='Accepted' AND submitted_at>=? AND submitted_at<=? LIMIT 1`).get(userId, p.problem_id, updatedRow.id, updatedRow.start_time, updatedRow.end_time);
       if (solved) solveStatus = 'Solved';
       else {
-        const attempted = await db.prepare(`SELECT 1 FROM submissions WHERE user_id=? AND problem_id=? AND contest_id=? AND submitted_at>=? AND submitted_at<=? LIMIT 1`).get(userId, p.problem_id, row.id, row.start_time, row.end_time);
+        const attempted = await db.prepare(`SELECT 1 FROM submissions WHERE user_id=? AND problem_id=? AND contest_id=? AND submitted_at>=? AND submitted_at<=? LIMIT 1`).get(userId, p.problem_id, updatedRow.id, updatedRow.start_time, updatedRow.end_time);
         if (attempted) solveStatus = 'Attempted';
       }
     }
@@ -142,7 +149,7 @@ contestsRouter.get('/:id', optionalAuth, async (req: AuthedRequest, res) => {
     return base;
   }));
 
-  res.json({ ...(await toContestSummary(row, userId)), problems, isRegistered });
+  res.json({ ...(await toContestSummary(updatedRow, userId)), problems, isRegistered });
 });
 
 // ---------------------------------------------------------------------------

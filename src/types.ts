@@ -141,6 +141,7 @@ export interface Contest {
   startTime: string;
   endTime: string;
   status: 'Upcoming' | 'Live' | 'Ended';
+  profilePointsAwarded?: boolean;
   problemCount: number;
   registeredCount: number;
   isRegistered: boolean;

@@ -31,7 +31,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, timeoutMs?: number): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -39,7 +39,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE_URL}/api${path}`, { ...options, headers });
+  const controller = timeoutMs ? new AbortController() : undefined;
+  const timeout = timeoutMs ? setTimeout(() => controller?.abort(), timeoutMs) : undefined;
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/api${path}`, {
+      ...options,
+      headers,
+      signal: controller?.signal ?? options.signal,
+    });
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;
@@ -71,7 +83,7 @@ export const authApi = {
     request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   login: (data: { email: string; password: string }) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
-  me: () => request<Omit<AuthResponse, 'token'>>('/auth/me'),
+  me: () => request<Omit<AuthResponse, 'token'>>('/auth/me', {}, 8000),
   forgotPassword: (email: string) =>
     request<{ success: boolean; message: string; developmentCode?: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   verifyResetCode: (email: string, code: string) =>

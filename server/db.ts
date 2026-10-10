@@ -250,7 +250,7 @@ export async function initSchema(): Promise<void> {
       )
   `).run(new Date().toISOString());
   await db.prepare(`
-    UPDATE contests SET profile_points_eligible_from=?
+    UPDATE contests SET profile_points_eligible_from=start_time
     WHERE profile_points_eligible_from IS NULL AND profile_points_awarded_at IS NULL
-  `).run(new Date().toISOString());
+  `).run();
 }

@@ -19,7 +19,7 @@ import { quizzesApi, ApiError } from '../services/api';
 
 interface QuizCenterProps {
   onNavigate: (view: string) => void;
-  addToast: (title: string, type: any, desc?: string) => void;
+  addToast: (title: string, type: any, desc?: string, duration?: number) => void;
 }
 
 export const QuizCenter: React.FC<QuizCenterProps> = ({

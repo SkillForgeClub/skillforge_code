@@ -33,7 +33,7 @@ import { useAuth } from '../context/AuthContext';
 
 interface AdminCommandCenterProps {
   onNavigate: (view: string) => void;
-  addToast: (title: string, type: any, desc?: string) => void;
+  addToast: (title: string, type: any, desc?: string, duration?: number) => void;
 }
 
 // Zod schemas for quiz validation
@@ -2012,7 +2012,10 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
                       fileCount: 1,
                       logoText: '',
                       accent: 'from-indigo-500 via-blue-500 to-cyan-500',
+                      sourceType: 'link',
                       url: '#',
+                      pdfFileName: '',
+                      pdfDataUrl: '',
                     })}
                     className="px-5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-200 text-xs font-bold cursor-pointer"
                   >

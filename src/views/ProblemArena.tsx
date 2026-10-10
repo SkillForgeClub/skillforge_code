@@ -21,7 +21,7 @@ import { INITIAL_PROBLEMS } from '../data/mockData';
 
 interface ProblemArenaProps {
   onNavigate: (view: string) => void;
-  addToast: (title: string, type: any, desc?: string) => void;
+  addToast: (title: string, type: any, desc?: string, duration?: number) => void;
 }
 
 export const ProblemArena: React.FC<ProblemArenaProps> = ({
@@ -229,13 +229,13 @@ export const ProblemArena: React.FC<ProblemArenaProps> = ({
                       #{number}
                     </span>
                     {prob.status === 'Solved' && (
-                      <CheckCircle className="h-4 w-4 text-emerald-500" title="Solved problem" />
+                      <span title="Solved problem"><CheckCircle className="h-4 w-4 text-emerald-500" /></span>
                     )}
                     {prob.status === 'Attempted' && (
-                      <AlertCircle className="h-4 w-4 text-amber-500" title="Attempted problem" />
+                      <span title="Attempted problem"><AlertCircle className="h-4 w-4 text-amber-500" /></span>
                     )}
                     {(!prob.status || prob.status === 'Unsolved') && (
-                      <HelpCircle className="h-4 w-4 text-zinc-300 dark:text-zinc-700" title="Unsolved problem" />
+                      <span title="Unsolved problem"><HelpCircle className="h-4 w-4 text-zinc-300 dark:text-zinc-700" /></span>
                     )}
 
                     <h3 className="font-extrabold text-sm text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
