@@ -185,6 +185,7 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
   const contestStatus = contest?.status;
   const [now, setNow] = useState(Date.now());
   const statusRefreshRequested = useRef(false);
+  const refreshedAwardedContestRef = useRef<string | null>(null);
   const [activeProblem, setActiveProblem] = useState<ContestProblemRef | null>(null);
   const [editorLanguage, setEditorLanguage] = useState<ProgrammingLanguage>('Python');
   const [splitPercent, setSplitPercent] = useState(42);
@@ -238,11 +239,16 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
   }, [contest?.profilePointsAwarded, contestId, contestStatus]);
 
   useEffect(() => {
-    if (role !== 'Student' || !contest?.profilePointsAwarded) return;
+    if (role !== 'Student' || contest?.status !== 'Ended' || !contest?.profilePointsAwarded) {
+      if (contest?.status !== 'Ended') refreshedAwardedContestRef.current = null;
+      return;
+    }
+    if (refreshedAwardedContestRef.current === contestId) return;
+    refreshedAwardedContestRef.current = contestId;
     refreshStudent().catch((err) => {
       addToast('Could Not Refresh Profile', 'error', err instanceof ApiError ? err.message : 'Server error.');
     });
-  }, [addToast, contest?.profilePointsAwarded, refreshStudent, role]);
+  }, [contest?.profilePointsAwarded, contest?.status, contestId, refreshStudent, role, addToast]);
 
   useEffect(() => {
     onProblemViewChange(Boolean(activeProblem));
