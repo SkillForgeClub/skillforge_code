@@ -230,6 +230,38 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
   }, [activeProblem, onProblemViewChange]);
 
   useEffect(() => {
+    if (role !== 'Student') return;
+
+    const preventClipboard = (event: Event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const preventClipboardShortcuts = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const modifierPressed = event.ctrlKey || event.metaKey;
+      const isClipboardShortcut =
+        (modifierPressed && ['c', 'x', 'v'].includes(key)) ||
+        ((modifierPressed || event.shiftKey) && key === 'insert');
+
+      if (isClipboardShortcut) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+
+    document.addEventListener('copy', preventClipboard, true);
+    document.addEventListener('cut', preventClipboard, true);
+    document.addEventListener('paste', preventClipboard, true);
+    document.addEventListener('keydown', preventClipboardShortcuts, true);
+    return () => {
+      document.removeEventListener('copy', preventClipboard, true);
+      document.removeEventListener('cut', preventClipboard, true);
+      document.removeEventListener('paste', preventClipboard, true);
+      document.removeEventListener('keydown', preventClipboardShortcuts, true);
+    };
+  }, [role]);
+
+  useEffect(() => {
     if (tab !== 'standings' || !contestStatus || contestStatus === 'Upcoming') return;
     let cancelled = false;
     const refresh = async () => {
@@ -427,6 +459,7 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
               onLanguageChange={setEditorLanguage}
               contestId={contestId}
               contestMode
+              disableClipboard={role === 'Student'}
               onSubmit={(_code, status) => {
                 if (status === 'Accepted') {
                   addToast('Accepted!', 'success', `Problem ${currentProblem.label} solved. Standings will update shortly.`);

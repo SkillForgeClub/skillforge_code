@@ -133,6 +133,28 @@ export default function App() {
     }
   };
 
+  const handleEnterContest = (contestId: string) => {
+    if (role === 'Guest') {
+      handleNavigate('login');
+      dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to view contest details.');
+      return;
+    }
+
+    if (role === 'Student' && !document.fullscreenElement) {
+      if (typeof document.documentElement.requestFullscreen !== 'function') {
+        dispatchToastNotification('Fullscreen Unavailable', 'warning', 'This browser does not support fullscreen mode.');
+      } else {
+        void document.documentElement.requestFullscreen().catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : 'The browser denied the fullscreen request.';
+          dispatchToastNotification('Fullscreen Unavailable', 'warning', message);
+        });
+      }
+    }
+
+    setActiveContestId(contestId);
+    handleNavigate('contest-room');
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-[#0a0a0a] text-zinc-400 text-xs font-bold uppercase tracking-widest">
@@ -367,15 +389,7 @@ export default function App() {
             {activeViewRoute === 'contests' && (
               <ContestHub
                 onNavigate={handleNavigate}
-                onEnterContest={(contestId) => {
-                  if (role === 'Guest') {
-                    handleNavigate('login');
-                    dispatchToastNotification('Authentication Required', 'warning', 'Please register or log in to view contest details.');
-                    return;
-                  }
-                  setActiveContestId(contestId);
-                  handleNavigate('contest-room');
-                }}
+                onEnterContest={handleEnterContest}
                 addToast={dispatchToastNotification}
               />
             )}
@@ -387,6 +401,13 @@ export default function App() {
                 onNavigate={handleNavigate}
                 onExit={() => {
                   setIsContestProblemView(false);
+                  if (document.fullscreenElement) {
+                    void document.exitFullscreen().catch((error: unknown) => {
+                      const message = error instanceof Error ? error.message : 'The browser could not exit fullscreen mode.';
+                      dispatchToastNotification('Could Not Exit Fullscreen', 'warning', message);
+                    });
+                  }
+                  setActiveContestId(null);
                   handleNavigate('contests');
                 }}
                 addToast={dispatchToastNotification}

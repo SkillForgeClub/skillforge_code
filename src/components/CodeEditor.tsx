@@ -33,6 +33,7 @@ interface CodeEditorProps {
   onSubmit?: (code: string, status?: string) => void;
   contestId?: string;
   contestMode?: boolean;
+  disableClipboard?: boolean;
   /**
    * 'judge' (default): Submit runs the real backend judge against all test cases, persists a
    *   graded submission, and updates the student's solved-count/points/streak - used for the
@@ -64,6 +65,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onSubmit,
   contestId,
   contestMode = false,
+  disableClipboard = false,
   submitMode = 'judge'
 }) => {
   const [code, setCode] = useState<string>('');
@@ -126,6 +128,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   }, [autoSaveEnabled, code, problem, selectedLanguage]);
 
   const handleCopy = async () => {
+    if (disableClipboard) return;
     try {
       await navigator.clipboard.writeText(code);
       setIsCopied(true);
@@ -342,8 +345,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           {/* Copy Button */}
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-xs font-semibold transition-all"
-            title="Copy Code to Clipboard"
+            disabled={disableClipboard}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50"
+            title={disableClipboard ? 'Copy is disabled during contests' : 'Copy Code to Clipboard'}
           >
             {isCopied ? (
               <>
