@@ -172,7 +172,7 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
   const { role, student, refreshStudent } = useAuth();
   const [contest, setContest] = useState<Contest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [tab, setTab] = useState<'overview' | 'problems' | 'standings' | 'submissions'>('standings');
+  const [tab, setTab] = useState<'overview' | 'problems' | 'standings' | 'submissions'>(() => role === 'Student' ? 'problems' : 'standings');
   const [standings, setStandings] = useState<ContestStandingEntry[]>([]);
   const [standingsLoading, setStandingsLoading] = useState(true);
   const [standingsLoaded, setStandingsLoaded] = useState(false);
@@ -209,7 +209,7 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
     setIsLoading(true);
     setContest(null);
     setActiveProblem(null);
-    setTab('standings');
+    setTab(role === 'Student' ? 'problems' : 'standings');
     setStandings([]);
     setStandingsLoading(true);
     setStandingsLoaded(false);
@@ -217,7 +217,7 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
     setStandingsUpdatedAt(null);
     setMySubmissions([]);
     statusRefreshRequested.current = false;
-  }, [contestId]);
+  }, [contestId, role]);
 
   const contestEndTime = contest ? new Date(contest.endTime).getTime() : null;
   useEffect(() => {
