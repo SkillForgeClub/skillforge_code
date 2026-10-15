@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Award, 
   Flame, 
@@ -16,7 +16,8 @@ import {
   Star,
   Lock,
   Unlock,
-  Download
+  Download,
+  RefreshCw
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
@@ -42,6 +43,13 @@ interface CoreAchievementBadge {
   lockedBorder: string;
   criteria: string;
   checkUnlocked: (student: Student) => boolean;
+}
+
+interface DashboardNotification {
+  id: string;
+  text: string;
+  type: 'live' | 'success' | 'upcoming';
+  time: string;
 }
 
 // Extensible core badges list
@@ -199,28 +207,97 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
   const [submissionsLoadState, setSubmissionsLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [problemsCatalog, setProblemsCatalog] = useState<CodingProblem[]>([]);
   const [quizzesCatalog, setQuizzesCatalog] = useState<Quiz[]>([]);
+  const [quizzesLoadState, setQuizzesLoadState] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [studyMaterialsList, setStudyMaterialsList] = useState<StudyMaterial[]>([]);
   const isMaterialsView = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'materials';
+  const notificationStorageKey = `skillforge-dashboard-notifications-v1-${activeStudent.id}`;
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
 
   useEffect(() => {
-    refreshStudent();
-    submissionsApi.mine().then((submissions) => {
-      setSubmissionsLog(submissions);
-      setSubmissionsLoadState('loaded');
-    }).catch((err) => {
-      setSubmissionsLoadState('error');
-      const message = err instanceof ApiError ? err.message : 'Could not load your submission history.';
-      addToast('Failed to Load Submissions', 'error', message);
+    refreshStudent().catch((err) => {
+      addToast('Failed to Refresh Student Profile', 'error', err instanceof ApiError ? err.message : 'Could not load your profile.');
     });
-    quizzesApi.list().then(setQuizzesCatalog).catch(() => {});
-    problemsApi.list().then(setProblemsCatalog).catch(() => {});
-    studyMaterialsApi.list().then(setStudyMaterialsList).catch(() => setStudyMaterialsList([]));
-  }, []);
-  
-  const [studentNotificationsList, setStudentNotificationsList] = useState<{ id: string; text: string; type: string; time: string; read: boolean }[]>([]);
+    let cancelled = false;
+    const refreshSubmissions = (reportError = false) => {
+      submissionsApi.mine().then((submissions) => {
+        if (cancelled) return;
+        setSubmissionsLog(submissions);
+        setSubmissionsLoadState('loaded');
+      }).catch((err) => {
+        if (cancelled) return;
+        setSubmissionsLoadState('error');
+        if (reportError) {
+          const message = err instanceof ApiError ? err.message : 'Could not load your submission history.';
+          addToast('Failed to Load Submissions', 'error', message);
+        }
+      });
+    };
+    const refreshQuizzes = () => {
+      quizzesApi.list().then((quizzes) => {
+        if (cancelled) return;
+        setQuizzesCatalog(quizzes);
+        setQuizzesLoadState('loaded');
+      }).catch(() => {
+        if (!cancelled) setQuizzesLoadState('error');
+      });
+    };
+    void refreshSubmissions(true);
+    void refreshQuizzes();
+    problemsApi.list().then((problems) => {
+      if (!cancelled) setProblemsCatalog(problems);
+    }).catch((err) => {
+      if (!cancelled) addToast('Failed to Load Problem Stats', 'error', err instanceof ApiError ? err.message : 'Could not load problem totals.');
+    });
+    studyMaterialsApi.list().then((materials) => {
+      if (!cancelled) setStudyMaterialsList(materials);
+    }).catch((err) => {
+      if (!cancelled) addToast('Failed to Load Study Materials', 'error', err instanceof ApiError ? err.message : 'Could not load study materials.');
+    });
+    const submissionsPoll = window.setInterval(() => refreshSubmissions(), 15000);
+    const quizzesPoll = window.setInterval(refreshQuizzes, 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(submissionsPoll);
+      window.clearInterval(quizzesPoll);
+    };
+  }, [refreshStudent, addToast]);
+
+  useEffect(() => {
+    if (!activeStudent.id) {
+      setReadNotificationIds([]);
+      return;
+    }
+    let stored: string | null;
+    try {
+      stored = localStorage.getItem(notificationStorageKey);
+    } catch (err) {
+      console.error('Could not read saved dashboard notification state:', err);
+      setReadNotificationIds([]);
+      return;
+    }
+    if (!stored) {
+      setReadNotificationIds([]);
+      return;
+    }
+    try {
+      const parsed: unknown = JSON.parse(stored);
+      setReadNotificationIds(Array.isArray(parsed) && parsed.every((id) => typeof id === 'string') ? parsed : []);
+    } catch (err) {
+      console.error('Could not read saved dashboard notification state:', err);
+      setReadNotificationIds([]);
+    }
+  }, [activeStudent.id, notificationStorageKey]);
 
   const markAllNotificationsAsRead = () => {
-    setStudentNotificationsList(prev => prev.map(n => ({ ...n, read: true })));
+    const ids = dashboardNotifications.map((notification) => notification.id);
+    try {
+      localStorage.setItem(notificationStorageKey, JSON.stringify(ids));
+    } catch (err) {
+      console.error('Could not save dashboard notification state:', err);
+      addToast('Could Not Save Notifications', 'error', 'Your browser could not save notification status.');
+      return;
+    }
+    setReadNotificationIds(ids);
     addToast('Notifications Cleared', 'success', 'All messages marked as read.');
   };
 
@@ -257,6 +334,57 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
     }
     return days;
   })();
+
+  const earnedBadges = CORE_ACHIEVEMENT_BADGES.filter((badge) => badge.checkUnlocked(activeStudent));
+  const dashboardNotifications = useMemo<DashboardNotification[]>(() => {
+    const notifications: DashboardNotification[] = [];
+    quizzesCatalog.filter((quiz) => quiz.status === 'Live').forEach((quiz) => {
+      notifications.push({
+        id: `quiz-live-${quiz.id}`,
+        text: `Quiz is live: ${quiz.title}`,
+        type: 'live',
+        time: quiz.startTime,
+      });
+    });
+    submissionsLog.slice(0, 5).forEach((submission) => {
+      notifications.push({
+        id: `submission-${submission.id}`,
+        text: `${submission.problemTitle}: ${submission.status}`,
+        type: submission.status === 'Accepted' ? 'success' : 'upcoming',
+        time: submission.submittedAt,
+      });
+    });
+    activeStudent.certificates.forEach((certificate) => {
+      notifications.push({
+        id: `certificate-${certificate.id}`,
+        text: `Credential issued: ${certificate.title}`,
+        type: 'success',
+        time: certificate.issueDate,
+      });
+    });
+    return notifications.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  }, [quizzesCatalog, submissionsLog, activeStudent.certificates]);
+
+  const refreshSubmissionHistory = () => {
+    setSubmissionsLoadState('loading');
+    submissionsApi.mine().then((submissions) => {
+      setSubmissionsLog(submissions);
+      setSubmissionsLoadState('loaded');
+    }).catch((err) => {
+      setSubmissionsLoadState('error');
+      addToast('Failed to Load Submissions', 'error', err instanceof ApiError ? err.message : 'Could not load your submission history.');
+    });
+  };
+
+  const refreshDashboardQuizzes = () => {
+    setQuizzesLoadState('loading');
+    quizzesApi.list().then((quizzes) => {
+      setQuizzesCatalog(quizzes);
+      setQuizzesLoadState('loaded');
+    }).catch(() => {
+      setQuizzesLoadState('error');
+    });
+  };
 
   if (isMaterialsView) {
     return (
@@ -586,6 +714,9 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
             </div>
 
             {/* Active Quiz Card */}
+            {quizzesLoadState === 'loading' && <p role="status" className="text-xs text-zinc-400">Checking for live quizzes…</p>}
+            {quizzesLoadState === 'error' && <p role="alert" className="text-xs text-rose-500">Live quizzes could not be loaded. <button type="button" onClick={refreshDashboardQuizzes} className="font-bold underline">Try again</button></p>}
+            {quizzesLoadState === 'loaded' && !quizzesCatalog.some((quiz) => quiz.status === 'Live') && <p className="text-xs text-zinc-400">There are no live quizzes right now.</p>}
             {quizzesCatalog.filter(q => q.status === 'Live').map(quiz => (
               <div key={quiz.id} className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="space-y-1">
@@ -612,11 +743,23 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
                   <FileCode2 className="h-4 w-4 text-indigo-500" />
                   Your Submission History
                 </span>
-                <span className="text-[10px] text-zinc-400 font-bold uppercase">Real-time log</span>
+                <button type="button" onClick={refreshSubmissionHistory} disabled={submissionsLoadState === 'loading'} className="inline-flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 disabled:opacity-50 dark:text-indigo-400">
+                  <RefreshCw className={`h-3 w-3 ${submissionsLoadState === 'loading' ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
               </div>
               
               <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {submissionsLog.map((sub) => (
+                {submissionsLoadState === 'loading' ? (
+                  <p role="status" className="p-6 text-center text-xs text-zinc-400">Loading your submissions…</p>
+                ) : submissionsLoadState === 'error' ? (
+                  <div role="alert" className="p-6 text-center">
+                    <p className="text-xs text-rose-500">Your submission history could not be loaded.</p>
+                    <button type="button" onClick={refreshSubmissionHistory} className="mt-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">Try again</button>
+                  </div>
+                ) : submissionsLog.length === 0 ? (
+                  <p className="p-6 text-center text-xs text-zinc-400">No submissions yet. Solve a problem to see your activity here.</p>
+                ) : submissionsLog.map((sub) => (
                   <div key={sub.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-850/20 transition-colors">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
@@ -634,7 +777,9 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
                         sub.status === 'Accepted'
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                          : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                          : sub.status === 'Queued' || sub.status === 'Running'
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            : 'bg-red-500/10 text-red-600 dark:text-red-400'
                       }`}>
                         {sub.status}
                       </span>
@@ -711,6 +856,7 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
               </h4>
               <button
                 onClick={markAllNotificationsAsRead}
+                disabled={dashboardNotifications.length === 0 || dashboardNotifications.every((notification) => readNotificationIds.includes(notification.id))}
                 className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline bg-transparent border-none cursor-pointer"
               >
                 Mark all read
@@ -718,11 +864,20 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
             </div>
 
             <div className="space-y-3">
-              {studentNotificationsList.map((notif) => (
+              {quizzesLoadState === 'error' && <p role="status" className="text-[10px] text-rose-500">Live quiz alerts could not be loaded. <button type="button" onClick={refreshDashboardQuizzes} className="font-bold underline">Retry</button></p>}
+              {dashboardNotifications.length === 0 && (quizzesLoadState === 'loading' || submissionsLoadState === 'loading') && (
+                <p role="status" className="py-3 text-center text-xs text-zinc-400">Loading your notifications…</p>
+              )}
+              {dashboardNotifications.length === 0 && quizzesLoadState === 'loaded' && submissionsLoadState === 'loaded' && (
+                <p className="py-3 text-center text-xs text-zinc-400">You’re all caught up. New quiz and submission updates will appear here.</p>
+              )}
+              {dashboardNotifications.map((notif) => {
+                const isRead = readNotificationIds.includes(notif.id);
+                return (
                 <div 
                   key={notif.id} 
                   className={`p-3 rounded-xl border text-xs leading-relaxed transition-all flex gap-2.5 ${
-                    notif.read 
+                    isRead
                       ? 'bg-zinc-50/50 dark:bg-zinc-950/20 border-zinc-100 dark:border-zinc-850 text-zinc-550 dark:text-zinc-400' 
                       : 'bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/40 text-zinc-850 dark:text-zinc-200 font-medium'
                   }`}
@@ -734,10 +889,11 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
                   </div>
                   <div className="flex-grow">
                     <p>{notif.text}</p>
-                    <span className="text-[9px] text-zinc-400 mt-0.5 block">{notif.time}</span>
+                    <span className="text-[9px] text-zinc-400 mt-0.5 block">{new Date(notif.time).toLocaleString()}</span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -745,21 +901,21 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
           <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
             <h4 className="font-extrabold text-xs uppercase text-zinc-400 tracking-wider flex items-center gap-1.5">
               <Award className="h-4 w-4 text-amber-500" />
-              Special Badges Earned
+              Achievement Badges Earned
             </h4>
 
-            {activeStudent.badges.length === 0 ? (
+            {earnedBadges.length === 0 ? (
               <div className="text-center py-6 text-zinc-400">
-                <p className="text-xs">No special badges unlocked yet.</p>
-                <p className="text-[10px] mt-1">Submit compile codes to earn badges!</p>
+                <p className="text-xs">No achievement badges unlocked yet.</p>
+                <p className="text-[10px] mt-1">Earn badges by reaching the solve milestones above.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2.5">
-                {activeStudent.badges.map((badge) => (
+                {earnedBadges.map((badge) => (
                   <div key={badge.id} className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800/60 flex items-center gap-3">
                     <span className="text-2xl select-none">{badge.icon}</span>
                     <div>
-                      <h5 className="font-bold text-xs text-zinc-900 dark:text-white leading-tight">{badge.name}</h5>
+                      <h5 className="font-bold text-xs text-zinc-900 dark:text-white leading-tight">{badge.title}</h5>
                       <p className="text-[10px] text-zinc-555 dark:text-zinc-400 leading-normal">{badge.description}</p>
                     </div>
                   </div>
@@ -775,7 +931,7 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
             {activeStudent.certificates.length === 0 ? (
               <div className="text-center py-6 text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
                 <p className="text-xs">No certificates issued yet.</p>
-                <p className="text-[10px] mt-0.5">Reach 3-Star standing or higher to trigger evaluation.</p>
+                <p className="text-[10px] mt-0.5">Certificates are issued by an administrator to students with 3-Star standing or higher.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -785,13 +941,15 @@ export const StudentConsole: React.FC<StudentConsoleProps> = ({
                       <h5 className="font-extrabold text-xs text-zinc-900 dark:text-white">{cert.title}</h5>
                       <span className="text-[10px] text-zinc-400">Issued {new Date(cert.issueDate).toLocaleDateString()}</span>
                     </div>
-                    <button
-                      onClick={() => addToast('Downloading Certificate', 'info', 'Academic credential is being retrieved.')}
+                    <a
+                      href={cert.credentialUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="w-full py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-55 dark:hover:bg-zinc-800 text-[10px] font-bold text-zinc-700 dark:text-zinc-300 flex items-center justify-center gap-1 transition-all cursor-pointer"
                     >
                       <ExternalLink className="h-3 w-3" />
-                      <span>Verify Credential Link</span>
-                    </button>
+                      <span>Verify Credential</span>
+                    </a>
                   </div>
                 ))}
               </div>

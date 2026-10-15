@@ -1054,6 +1054,29 @@ app.delete('/api/admin/materials/:id', requireAuth, requireAdmin, async (req, re
   res.json({ success: true });
 });
 
+app.get('/api/credentials/:credentialId', async (req, res) => {
+  const students = await db.prepare(`SELECT full_name, roll_number, certificates FROM users WHERE role='student'`).all();
+  for (const student of students) {
+    const certificates = JSON.parse(student.certificates || '[]');
+    const certificate = certificates.find((item: any) =>
+      item.id === req.params.credentialId ||
+      item.credentialUrl?.split('/').pop() === req.params.credentialId
+    );
+    if (certificate) {
+      return res.json({
+        valid: true,
+        certificate: {
+          title: certificate.title,
+          issueDate: certificate.issueDate,
+          studentName: student.full_name,
+          rollNumber: student.roll_number,
+        },
+      });
+    }
+  }
+  return res.status(404).json({ error: 'Credential not found.' });
+});
+
 // ---------------------------------------------------------------------------
 // Admin: student management + platform stats
 // ---------------------------------------------------------------------------
@@ -1092,11 +1115,12 @@ app.post('/api/admin/students/:id/certificates', requireAuth, requireAdmin, asyn
   const issueDate = String(req.body?.issueDate || new Date().toISOString().slice(0, 10));
   if (!title) return res.status(400).json({ error: 'Certification title is required.' });
 
+  const certificateId = newId('cert');
   const certificate = {
-    id: newId('cert'),
+    id: certificateId,
     title,
     issueDate,
-    credentialUrl: `/credentials/${existing.roll_number}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'skillforge-certificate'}`,
+    credentialUrl: `/credentials/${encodeURIComponent(certificateId)}`,
   };
   const certificates = [certificate, ...JSON.parse(existing.certificates || '[]')];
   await db.prepare(`UPDATE users SET certificates=? WHERE id=?`).run(JSON.stringify(certificates), req.params.id);

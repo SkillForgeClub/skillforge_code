@@ -283,6 +283,21 @@ export const adminApi = {
   }>>('/admin/recent-submissions'),
 };
 
+export interface CredentialVerification {
+  valid: true;
+  certificate: {
+    title: string;
+    issueDate: string;
+    studentName: string;
+    rollNumber: string;
+  };
+}
+
+export const credentialsApi = {
+  verify: (credentialId: string) =>
+    request<CredentialVerification>(`/credentials/${encodeURIComponent(credentialId)}`),
+};
+
 export const studyMaterialsApi = {
   list: () => request<StudyMaterial[]>('/materials'),
   adminList: () => request<StudyMaterial[]>('/admin/materials'),

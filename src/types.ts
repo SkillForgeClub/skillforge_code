@@ -100,7 +100,7 @@ export interface Submission {
   problemTitle: string;
   language: ProgrammingLanguage;
   code: string;
-  status: 'Accepted' | 'Wrong Answer' | 'Time Limit Exceeded' | 'Runtime Error' | 'Compilation Error';
+  status: 'Queued' | 'Running' | 'Accepted' | 'Wrong Answer' | 'Time Limit Exceeded' | 'Runtime Error' | 'Compilation Error';
   submittedAt: string;
   executionTimeMs: number;
   memoryKb: number;

@@ -157,6 +157,11 @@ GET  /api/submissions/queue-status queue depth stats
 GET /api/events                   SSE stream (JWT via ?token= query param)
 ```
 
+### Credentials
+```
+GET /api/credentials/:credentialId  public credential verification
+```
+
 ### Contests
 ```
 GET  /api/contests

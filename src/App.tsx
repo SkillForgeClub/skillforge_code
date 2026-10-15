@@ -20,6 +20,7 @@ const ContestHub = lazy(() => import('./views/ContestHub').then((module) => ({ d
 const ContestRoom = lazy(() => import('./views/ContestRoom').then((module) => ({ default: module.ContestRoom })));
 const TermsPage = lazy(() => import('./views/PolicyPages').then((module) => ({ default: module.TermsPage })));
 const SecurityPage = lazy(() => import('./views/PolicyPages').then((module) => ({ default: module.SecurityPage })));
+const CredentialVerificationPage = lazy(() => import('./views/CredentialVerification').then((module) => ({ default: module.CredentialVerificationPage })));
 
 export default function App() {
   const location = useLocation();
@@ -167,6 +168,10 @@ export default function App() {
   const isContestRoom = pathname === '/contest-room' && Boolean(activeContestId) && role !== 'Guest' && isContestProblemView;
 
   const renderRoutePage = () => {
+    if (pathname.startsWith('/credentials/')) {
+      const credentialId = pathname.slice('/credentials/'.length);
+      return <CredentialVerificationPage credentialId={credentialId} />;
+    }
     if (pathname === '/terms') return <TermsPage />;
     if (pathname === '/security') return <SecurityPage />;
     if (pathname === '/about' || pathname === '/department') {
