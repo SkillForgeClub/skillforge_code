@@ -1,6 +1,6 @@
 /**
- * Contest module: time-boxed, multi-problem coding contests with registration
- * and an ICPC-style live leaderboard (points for solved problems, ranked by
+ * Contest module: time-boxed, multi-problem coding contests and an ICPC-style
+ * live leaderboard (points for solved problems, ranked by
  * total points then total penalty time - wrong attempts before an accept add
  * a time penalty, same model Codeforces/ICPC use).
  */
@@ -74,6 +74,13 @@ function contestStatus(row: any): 'Upcoming' | 'Live' | 'Ended' {
 async function toContestSummary(row: any, userId?: string) {
   const problemCount = (await db.prepare(`SELECT COUNT(*)::int c FROM contest_problems WHERE contest_id=?`).get(row.id)).c;
   const registeredCount = (await db.prepare(`SELECT COUNT(*)::int c FROM contest_registrations WHERE contest_id=?`).get(row.id)).c;
+  const participantCount = (await db.prepare(`
+    SELECT COUNT(*)::int c FROM (
+      SELECT user_id FROM contest_registrations WHERE contest_id=?
+      UNION
+      SELECT user_id FROM submissions WHERE contest_id=? AND submitted_at>=? AND submitted_at<=?
+    ) participants
+  `).get(row.id, row.id, row.start_time, row.end_time)).c;
   const isRegistered = userId
     ? !!(await db.prepare(`SELECT 1 FROM contest_registrations WHERE contest_id=? AND user_id=?`).get(row.id, userId))
     : false;
@@ -86,6 +93,7 @@ async function toContestSummary(row: any, userId?: string) {
     status: contestStatus(row),
     profilePointsAwarded: Boolean(row.profile_points_awarded_at),
     problemCount,
+    participantCount,
     registeredCount,
     isRegistered,
   };
@@ -179,14 +187,20 @@ contestsRouter.get('/:id/leaderboard', optionalAuth, async (req, res) => {
   if (!contest) return res.status(404).json({ error: 'Contest not found.' });
 
   const contestProblems = await db.prepare(`SELECT problem_id, label, points FROM contest_problems WHERE contest_id=?`).all(req.params.id);
-  const registered = await db.prepare(`
-    SELECT u.id, u.full_name, u.roll_number FROM contest_registrations cr
-    JOIN users u ON u.id = cr.user_id WHERE cr.contest_id=?
-  `).all(req.params.id);
+  const participants = await db.prepare(`
+    SELECT u.id, u.full_name, u.roll_number FROM users u
+    WHERE EXISTS (
+      SELECT 1 FROM contest_registrations cr
+      WHERE cr.contest_id=? AND cr.user_id=u.id
+    ) OR EXISTS (
+      SELECT 1 FROM submissions s
+      WHERE s.contest_id=? AND s.user_id=u.id AND s.submitted_at>=? AND s.submitted_at<=?
+    )
+  `).all(req.params.id, req.params.id, contest.start_time, contest.end_time);
 
   const contestStart = new Date(contest.start_time).getTime();
 
-  const standings = await Promise.all(registered.map(async (user: any) => {
+  const standings = await Promise.all(participants.map(async (user: any) => {
     let totalPoints = 0;
     let totalPenaltyMinutes = 0;
     let solvedCount = 0;

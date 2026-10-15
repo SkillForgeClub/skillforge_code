@@ -219,7 +219,16 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
     statusRefreshRequested.current = false;
   }, [contestId, role]);
 
+  const contestStartTime = contest ? new Date(contest.startTime).getTime() : null;
   const contestEndTime = contest ? new Date(contest.endTime).getTime() : null;
+  const needsLiveStatusRefresh = contestStatus === 'Upcoming' && contestStartTime !== null && now >= contestStartTime;
+  useEffect(() => {
+    if (!needsLiveStatusRefresh) return;
+    loadContest();
+    const poll = window.setInterval(loadContest, 10000);
+    return () => window.clearInterval(poll);
+  }, [needsLiveStatusRefresh, contestId]);
+
   useEffect(() => {
     if (contestStatus !== 'Live' || contestEndTime === null || now < contestEndTime || statusRefreshRequested.current) return;
     statusRefreshRequested.current = true;
@@ -328,16 +337,6 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
     });
     return () => { cancelled = true; };
   }, [tab, contest]);
-
-  const handleRegister = async () => {
-    try {
-      await contestsApi.register(contestId);
-      addToast('Registered!', 'success', 'You are now registered for this contest.');
-      loadContest();
-    } catch (err) {
-      addToast('Registration Failed', 'error', err instanceof ApiError ? err.message : 'Could not register.');
-    }
-  };
 
   const retryStandingsLoad = useCallback(() => {
     if (!standingsLoaded) setStandingsLoading(true);
@@ -544,14 +543,14 @@ export const ContestRoom: React.FC<ContestRoomProps> = ({ contestId, onProblemVi
         </nav>
 
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Contest statistics">
-          <div className="contest-stat"><span>Participants</span><strong>{standingsLoaded ? standings.length : contest.registeredCount}</strong><Users className="h-4 w-4" /></div>
+          <div className="contest-stat"><span>Participants</span><strong>{standingsLoaded ? standings.length : contest.participantCount}</strong><Users className="h-4 w-4" /></div>
           <div className="contest-stat"><span>Problems</span><strong>{problemCount}</strong><Code2 className="h-4 w-4" /></div>
           <div className="contest-stat"><span>{contest.status === 'Upcoming' ? 'Starts in' : 'Remaining time'}</span><strong className="font-mono">{timeLabel}</strong><Clock className="h-4 w-4" /></div>
           <div className="contest-stat contest-rank-stat"><span>Your rank</span><strong>{myStanding ? `#${myStanding.rank}` : '—'}</strong><small>{myStanding ? `${myStanding.solvedCount} solved · ${myStanding.totalPoints} pts · ${myStanding.totalPenaltyMinutes}m` : student ? 'Not ranked yet' : 'Sign in to see your rank'}</small></div>
         </section>
 
-        {role === 'Student' && contest.status === 'Upcoming' && !contest.isRegistered && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30"><p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Register to access contest problems and participate in standings.</p><button onClick={handleRegister} className="rounded-md bg-indigo-600 px-3 py-2 text-xs font-extrabold text-white hover:bg-indigo-700">Register for contest</button></div>}
-        {role === 'Student' && contest.isRegistered && contest.status !== 'Live' && <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400"><CheckCircle className="mr-1 inline h-3.5 w-3.5" />You are registered</p>}
+        {role === 'Student' && contest.status === 'Upcoming' && <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">No registration is needed. Join and start solving any time after the contest begins.</p>}
+        {role === 'Student' && contest.status === 'Live' && <p className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">No registration is needed. You can join and start solving now.</p>}
 
         {tab === 'overview' && <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-[#11141d]"><h2 className="text-sm font-extrabold">About this contest</h2><p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">{contest.description || 'No contest description provided.'}</p><div className="mt-4 flex flex-wrap gap-5 text-[11px] text-zinc-500"><span>Starts <strong className="text-zinc-800 dark:text-zinc-200">{new Date(contest.startTime).toLocaleString()}</strong></span><span>Ends <strong className="text-zinc-800 dark:text-zinc-200">{new Date(contest.endTime).toLocaleString()}</strong></span></div></section>}
 

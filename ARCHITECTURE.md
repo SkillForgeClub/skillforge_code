@@ -161,7 +161,7 @@ GET /api/events                   SSE stream (JWT via ?token= query param)
 ```
 GET  /api/contests
 GET  /api/contests/:id
-POST /api/contests/:id/register
+POST /api/contests/:id/register (optional; not required to participate)
 GET  /api/contests/:id/leaderboard
 POST /api/contests              admin: create
 PUT  /api/contests/:id          admin: update

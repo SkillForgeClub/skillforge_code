@@ -108,7 +108,7 @@ server/
 src/
   services/api.ts       - Typed fetch client; submissionsApi.run/submit kick off a job and poll it to completion
   context/AuthContext.tsx - React auth/session state (JWT stored in localStorage)
-  views/ContestHub.tsx   - Browse Live/Upcoming/Ended contests, register
+  views/ContestHub.tsx   - Browse Live/Upcoming/Ended contests and join live contests
   views/ContestRoom.tsx  - Solve contest problems, live-polling standings table
   views/, components/   - Original UI, now wired to the real API instead of mock data
 ```
@@ -138,8 +138,9 @@ academic problem sets - not another platform's copyrighted content.
 
 - Admins create a contest with a title, start/end time, and an ordered list of problems each
   worth a point value (via the Admin Console's **Contests** tab).
-- Students **register** for a contest any time before it ends. Problem statements stay hidden
-  (title only) until the contest status flips to **Live**.
+- Students do not need to register: they can join and start solving at any time while a contest
+  is **Live**. Problem statements stay hidden (title only) until the contest starts.
+- Participants are added to the standings automatically when they submit to a contest problem.
 - While live, submissions made from inside the contest room are tagged with the contest ID and
   scored ICPC-style: solving a problem earns its point value; the tiebreaker is total penalty
   time (minutes-since-contest-start when you solved it, plus 20 penalty minutes per wrong
@@ -308,4 +309,3 @@ That matters once one server's CPU core count genuinely can't keep up with your 
 rate - use `scripts/loadtest.mjs` against your real deployment to find out whether you're
 actually at that point before building it; it's a real infrastructure project, not a small
 addition.
-

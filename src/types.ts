@@ -143,6 +143,7 @@ export interface Contest {
   status: 'Upcoming' | 'Live' | 'Ended';
   profilePointsAwarded?: boolean;
   problemCount: number;
+  participantCount: number;
   registeredCount: number;
   isRegistered: boolean;
   problems?: ContestProblemRef[];

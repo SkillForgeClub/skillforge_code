@@ -682,8 +682,6 @@ app.post('/api/submissions/submit', requireAuth, async (req: AuthedRequest, res)
     if (now < new Date(contestRow.start_time).getTime() || now > new Date(contestRow.end_time).getTime() + CONTEST_END_GRACE_MS) {
       return res.status(400).json({ error: 'This contest is not currently live.' });
     }
-    const registered = await db.prepare(`SELECT 1 FROM contest_registrations WHERE contest_id=? AND user_id=?`).get(contestId, req.user!.id);
-    if (!registered) return res.status(403).json({ error: 'You are not registered for this contest.' });
     const belongsToContest = await db.prepare(`SELECT 1 FROM contest_problems WHERE contest_id=? AND problem_id=?`).get(contestId, problemId);
     if (!belongsToContest) return res.status(400).json({ error: 'This problem is not part of this contest.' });
   }

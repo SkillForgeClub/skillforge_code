@@ -1710,7 +1710,7 @@ export const AdminCommandCenter: React.FC<AdminCommandCenterProps> = ({
                         <h4 className="text-sm font-extrabold">{contest.title}</h4>
                         <span className="text-[10px] px-2 py-0.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 font-black uppercase text-zinc-500">{contest.status}</span>
                       </div>
-                      <p className="text-[11px] text-zinc-400 font-semibold">{contest.problemCount} problems · {contest.registeredCount} registered · {new Date(contest.startTime).toLocaleString()} → {new Date(contest.endTime).toLocaleString()}</p>
+                      <p className="text-[11px] text-zinc-400 font-semibold">{contest.problemCount} problems · {contest.participantCount} participants · {new Date(contest.startTime).toLocaleString()} → {new Date(contest.endTime).toLocaleString()}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {contest.status === 'Live' && (
