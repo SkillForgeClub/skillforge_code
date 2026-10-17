@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { lazy, Suspense, useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Toast, ToastMessage } from './components/Toast';
@@ -80,7 +80,7 @@ export default function App() {
   }, [isDarkModeActive]);
 
   // Handle toast notifications dispatching
-  const dispatchToastNotification = (title: string, type: 'success' | 'error' | 'warning' | 'info', desc?: string, duration = 3500) => {
+  const dispatchToastNotification = useCallback((title: string, type: 'success' | 'error' | 'warning' | 'info', desc?: string, duration = 3500) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
     const newToast: ToastMessage = { id, title, type, description: desc };
     setToastNotificationsList((prev) => [...prev, newToast]);
@@ -89,7 +89,7 @@ export default function App() {
         setToastNotificationsList((prev) => prev.filter((t) => t.id !== id));
       }, duration);
     }
-  };
+  }, []);
 
   const dismissToastNotification = (id: string) => {
     setToastNotificationsList((prev) => prev.filter((t) => t.id !== id));
