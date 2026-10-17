@@ -21,7 +21,12 @@ import 'dotenv/config';
 
 const { Pool } = pg;
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/skillforge';
+const configuredDatabaseUrl = process.env.DATABASE_URL;
+if (process.env.NODE_ENV === 'production' && !configuredDatabaseUrl) {
+  throw new Error('DATABASE_URL must be configured in production.');
+}
+
+const connectionString = configuredDatabaseUrl || 'postgresql://postgres:postgres@localhost:5432/skillforge';
 
 export const pool = new Pool({
   connectionString,

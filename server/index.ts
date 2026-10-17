@@ -22,14 +22,18 @@ import { sseConnect, sseConnectionCount } from './sse.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = Number(process.env.PORT) || 8787;
+const CODE_EXECUTION_ENABLED = process.env.NODE_ENV !== 'production';
 
-// In a split deployment, set ALLOWED_ORIGIN to the frontend's exact origin (e.g.
-// https://yourapp.vercel.app) to restrict which sites can call this API with credentials.
-// Left unset, all origins are allowed - fine for local dev and for a combined single-server
-// deployment (same-origin requests don't need CORS at all), but set this for a real
-// split (Vercel + separate backend) production deployment.
+function codeExecutionUnavailable(res: express.Response) {
+  return res.status(503).json({ error: 'Code execution is unavailable until secure judging is configured.' });
+}
+
+// Set ALLOWED_ORIGIN to the frontend's exact origin in split deployments. Production denies
+// cross-origin requests when unset; same-origin deployments do not need CORS.
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
-app.use(cors(ALLOWED_ORIGIN ? { origin: ALLOWED_ORIGIN, credentials: true } : {}));
+app.use(cors(ALLOWED_ORIGIN
+  ? { origin: ALLOWED_ORIGIN, credentials: true }
+  : process.env.NODE_ENV === 'production' ? { origin: false } : {}));
 app.use(express.json({ limit: '2mb' }));
 
 // Trust proxy headers (needed when behind Nginx/Render/Vercel)
@@ -196,7 +200,10 @@ async function toProblemFull(row: any, studentId: string | undefined, includeHid
 
 async function toQuizSummary(row: any) {
   const participants = (await db.prepare(`SELECT COUNT(*)::int c FROM quiz_attempts WHERE quiz_id=?`).get(row.id)).c;
-  const questionCount = (await db.prepare(`SELECT COUNT(*)::int c FROM quiz_questions WHERE quiz_id=?`).get(row.id)).c;
+  const questionStats = await db.prepare(`
+    SELECT COUNT(*)::int total, COUNT(*) FILTER (WHERE type='coding')::int coding
+    FROM quiz_questions WHERE quiz_id=?
+  `).get(row.id);
   return {
     id: row.id,
     title: row.title,
@@ -206,7 +213,9 @@ async function toQuizSummary(row: any) {
     durationMinutes: row.duration_minutes,
     status: row.status,
     participantsCount: participants,
-    questionCount,
+    questionCount: questionStats.total,
+    hasCodingQuestions: questionStats.coding > 0,
+    codeExecutionEnabled: CODE_EXECUTION_ENABLED,
   };
 }
 
@@ -626,6 +635,7 @@ app.get('/api/health', (_req, res) => res.json({
 }));
 
 app.post('/api/submissions/run', requireAuth, async (req: AuthedRequest, res) => {
+  if (!CODE_EXECUTION_ENABLED) return codeExecutionUnavailable(res);
   const { problemId, language, code } = req.body || {};
   const probRow = await db.prepare(`SELECT * FROM problems WHERE id=?`).get(problemId);
   if (!probRow) return res.status(404).json({ error: 'Problem not found.' });
@@ -670,6 +680,7 @@ app.get('/api/submissions/run/:runId', requireAuth, (req: AuthedRequest, res) =>
 app.post('/api/submissions/submit', requireAuth, async (req: AuthedRequest, res) => {
   const { problemId, language, code, contestId } = req.body || {};
   if (req.user!.role !== 'student') return res.status(403).json({ error: 'Only students can submit solutions.' });
+  if (!CODE_EXECUTION_ENABLED) return codeExecutionUnavailable(res);
   const probRow = await db.prepare(`SELECT * FROM problems WHERE id=?`).get(problemId);
   if (!probRow) return res.status(404).json({ error: 'Problem not found.' });
   if (probRow.contest_only && !contestId) return res.status(400).json({ error: 'This problem can only be submitted through its contest.' });
@@ -875,6 +886,9 @@ app.post('/api/quizzes/:id/submit', requireAuth, async (req: AuthedRequest, res)
 
   const answers = (req.body && req.body.answers) || {};
   const questions = await db.prepare(`SELECT * FROM quiz_questions WHERE quiz_id=? ORDER BY ord ASC`).all(req.params.id);
+  if (!CODE_EXECUTION_ENABLED && questions.some((question: any) => question.type === 'coding')) {
+    return codeExecutionUnavailable(res);
+  }
 
   let score = 0;
   let maxScore = 0;

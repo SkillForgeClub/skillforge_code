@@ -89,6 +89,8 @@ export interface Quiz {
   durationMinutes: number;
   status: 'Upcoming' | 'Live' | 'Completed';
   participantsCount: number;
+  hasCodingQuestions?: boolean;
+  codeExecutionEnabled?: boolean;
   /** Only present when fetched via quizzesApi.get(id) (full detail). List endpoints only return questionCount. */
   questions?: QuizQuestion[];
   questionCount?: number;

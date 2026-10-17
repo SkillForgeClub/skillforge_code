@@ -73,7 +73,7 @@ write anymore. `GET /api/admin/stats` exposes the same numbers if you want to sc
 
 3. The database is created and seeded automatically on first boot, including 3 demo contests
    (one Upcoming, one Live, one Ended) so you can see all three states immediately. Demo accounts:
-   - **Admin:** `admin@skillforge.dev` / `admin123`
+    - **Development admin:** `admin@skillforge.dev` / `admin123` (local development only)
    - **Student:** any seeded student email (e.g. `rahul.sharma@college.edu`) / `student123`
    - Or just register a brand-new student account from the UI.
 
@@ -91,6 +91,11 @@ for the backend, since the judge needs real compilers that pure serverless funct
 provide)? See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for the full walkthrough — Supabase, Render,
 Vercel, and how they're wired together (`VITE_API_URL` on the frontend build, `ALLOWED_ORIGIN`
 on the backend, HTTPS handled automatically by both Vercel and Render).
+
+Production startup requires `DATABASE_URL` and a unique `JWT_SECRET` of at least 32 characters.
+On a new database, set `ADMIN_EMAIL` and a unique `ADMIN_PASSWORD` of at least 16 characters.
+Never use the development seed credentials in production. Code execution is disabled whenever
+`NODE_ENV=production`; enabling it requires a separate isolated worker and API queue integration.
 
 ## Architecture
 
@@ -231,7 +236,7 @@ final minutes - the real shape of contest traffic, since everyone hammers Submit
 the deadline). It reports real latency numbers instead of guesses, and cleans up after itself.
 
 ```
-node scripts/loadtest.mjs --users 200 --duration 120 --spike-window 20 --cleanup
+node scripts/loadtest.mjs --admin-email your-admin@example.com --admin-password your-password --users 200 --duration 120 --spike-window 20 --cleanup
 ```
 
 Key flags: `--users` (virtual students), `--duration` (contest length in seconds),

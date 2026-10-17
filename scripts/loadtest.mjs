@@ -25,7 +25,7 @@
  *   --submits-per-user  How many submissions each user makes over the contest (default: 3)
  *   --account-concurrency  How many account-creation/registration requests run in parallel (default: 20)
  *   --submit-concurrency   Max in-flight submission+poll cycles at once (default: 30)
- *   --admin-email / --admin-password  Admin credentials (default: admin@skillforge.dev / admin123)
+ *   --admin-email / --admin-password  Admin credentials (or ADMIN_EMAIL / ADMIN_PASSWORD env vars)
  *   --problem-id      Problem to submit against (default: prob-1)
  *   --language        Language to submit in (default: Python)
  *   --cleanup         Delete the test contest and accounts when done
@@ -59,8 +59,8 @@ const SPIKE_FRACTION = argv['spike-fraction'] !== undefined ? Number(argv['spike
 const SUBMITS_PER_USER = Number(argv['submits-per-user']) || 3;
 const ACCOUNT_CONCURRENCY = Number(argv['account-concurrency']) || 20;
 const SUBMIT_CONCURRENCY = Number(argv['submit-concurrency']) || 30;
-const ADMIN_EMAIL = argv['admin-email'] || 'admin@skillforge.dev';
-const ADMIN_PASSWORD = argv['admin-password'] || 'admin123';
+const ADMIN_EMAIL = argv['admin-email'] || process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = argv['admin-password'] || process.env.ADMIN_PASSWORD;
 const PROBLEM_ID = argv['problem-id'] || 'prob-1';
 const LANGUAGE = argv.language || 'Python';
 const DO_CLEANUP = !!argv.cleanup;
@@ -174,6 +174,11 @@ function recordHttpOutcome(res) {
 // ---------------------------------------------------------------------------
 
 async function setup() {
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    console.error('Provide --admin-email and --admin-password or set ADMIN_EMAIL and ADMIN_PASSWORD.');
+    process.exit(1);
+  }
+
   console.log(`\n=== Contest Load Test (run ${RUN_TAG}) ===`);
   console.log(`Target: ${BASE_URL}`);
   console.log(`Simulating ${NUM_USERS} students, ${SUBMITS_PER_USER} submissions each (${NUM_USERS * SUBMITS_PER_USER} total), over ${DURATION_SEC}s`);

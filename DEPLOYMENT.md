@@ -1,20 +1,15 @@
 # Deployment Runbook: Vercel + Render + Supabase
 
-This walks through deploying SkillForge Code on **Vercel** (frontend), **Render** (backend +
-judge), and **Supabase** (Postgres database).
+This walks through deploying SkillForge Code on **Vercel** (frontend), **Render** (API), and
+**Supabase** (Postgres database).
 
 Each part below requires **your own account** on that service — I can't create accounts or
 deploy on your behalf, only tell you exactly what to configure.
 
-**One constraint worth knowing up front:** Render's standard web services don't support nested
-Docker (no Docker-in-Docker), so the optional `JUDGE_RUNTIME=docker` container-isolation mode
-for the code judge can't run *inside* the Render service itself. This is true of most PaaS
-platforms (Heroku, Railway, Vercel share the same limitation) — it isn't a Render-specific gap.
-The default judge mode (`host`, process-level isolation via resource limits + timeouts — already
-tested and working) runs fully on Render with no extra setup; the `Dockerfile` in this repo
-installs the compilers directly into the Render container for exactly that. If you specifically
-need true per-submission container isolation, run the judge on a separate small VM with Docker
-installed (see README "Docker judge isolation") instead of on Render.
+Render's standard web services do not provide a Docker sandbox for untrusted code. This setup
+therefore disables code execution in production. To offer code judging, deploy a separate
+Docker-isolated worker on a Docker-enabled host and connect it through a queue before enabling
+the feature.
 
 ---
 
@@ -41,7 +36,11 @@ and there's no file/object storage anywhere in the app to migrate. Nothing to co
 
 ---
 
-## Part 2: Render (API + judge)
+## Part 2: Render (API)
+
+The Render deployment intentionally does not execute student-submitted code. Production judge
+routes return HTTP 503 until an isolated Docker judge worker is deployed and connected through
+the API queue. Do not enable host-mode execution for untrusted submissions.
 
 ### 2a. Create the service
 1. Push your repo to GitHub/GitLab if it isn't already there.
@@ -55,8 +54,12 @@ In the Render dashboard, under your service's **Environment** tab, set:
 ```
 DATABASE_URL=<the Supabase connection string from Part 1>
 JWT_SECRET=<generate one: openssl rand -hex 32>
+ADMIN_EMAIL=<production administrator email>
+ADMIN_PASSWORD=<unique password of at least 16 characters>
 ALLOWED_ORIGIN=https://your-app.vercel.app
 ```
+Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` before the first production boot. If the database still
+has the old development seed account, startup rotates its email/password using these values.
 For password-reset email, set `RESEND_API_KEY` and `RESEND_FROM` (see below). Resend sends
 over HTTPS. Password recovery returns a configuration error in production until both values
 are configured. Other optional settings include `JUDGE_CONCURRENCY`, `SUBMIT_MIN_GAP_MS`, and
@@ -76,11 +79,12 @@ are configured. Other optional settings include `JUDGE_CONCURRENCY`, `SUBMIT_MIN
 
 ### 2c. Deploy
 Click **Create Web Service** (or it deploys automatically from the Blueprint). Render builds
-the API image with Node.js and the Python/gcc/g++/OpenJDK runtimes needed by the judge. The
-frontend is not built or served by Render. This takes a few minutes on the first deploy.
+the API image without compiler runtimes. The frontend is not built or served by Render. This
+takes a few minutes on the first deploy.
 
 Render gives you a URL like `https://skillforge-backend.onrender.com` with HTTPS already
-handled — no separate certificate setup needed (unlike a raw VM).
+handled — no separate certificate setup needed (unlike a raw VM). Coding quiz submission and
+judge endpoints remain unavailable until a Docker-isolated judge is configured.
 
 Confirm it's up: `curl https://skillforge-backend.onrender.com/api/health` → `{"ok":true}`
 
@@ -146,7 +150,7 @@ Don't consider this done until every one of these actually passes:
 - [ ] Submit a real solution in each of the 4 languages and confirm correct verdicts
 - [ ] Register for a contest, submit inside it, confirm the live standings update
 - [ ] In the Render dashboard, manually restart the service — confirm it comes back up cleanly
-- [ ] Run `node scripts/loadtest.mjs --url https://skillforge-backend.onrender.com --users 100 --duration 60`
+- [ ] Run the judge load test only after isolated judging is deployed: `node scripts/loadtest.mjs --url https://skillforge-backend.onrender.com --admin-email your-admin@example.com --admin-password your-password --users 100 --duration 60`
       against the real deployment and read the results before trusting it with a real contest
       (see README "Load testing") — Render's free tier has real CPU limits worth knowing before
       contest day, same reasoning as before, different platform

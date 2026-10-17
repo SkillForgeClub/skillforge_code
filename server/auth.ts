@@ -1,7 +1,17 @@
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'skillforge-dev-secret-change-in-production';
+const DEVELOPMENT_JWT_SECRET = 'skillforge-dev-secret-change-in-production';
+const configuredJwtSecret = process.env.JWT_SECRET;
+if (process.env.NODE_ENV === 'production' && (
+  !configuredJwtSecret ||
+  configuredJwtSecret.length < 32 ||
+  configuredJwtSecret === DEVELOPMENT_JWT_SECRET
+)) {
+  throw new Error('JWT_SECRET must be configured with at least 32 characters in production.');
+}
+
+export const JWT_SECRET = configuredJwtSecret || DEVELOPMENT_JWT_SECRET;
 
 export interface AuthPayload {
   id: string;

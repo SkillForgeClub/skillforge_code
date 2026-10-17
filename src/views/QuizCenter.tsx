@@ -201,7 +201,14 @@ export const QuizCenter: React.FC<QuizCenterProps> = ({
 
                 <div className="pt-4 border-t border-zinc-150 dark:border-zinc-800/60 mt-4 flex items-center justify-between">
                   <span className="text-[10px] text-zinc-400 font-bold uppercase">{(quiz as any).questionCount ?? quiz.questions?.length ?? 0} Evaluation Tasks</span>
-                  {quiz.status === 'Live' ? (
+                  {quiz.status === 'Live' && quiz.hasCodingQuestions && !quiz.codeExecutionEnabled ? (
+                    <button
+                      disabled
+                      className="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-500 text-xs font-bold cursor-not-allowed"
+                    >
+                      Coding judge unavailable
+                    </button>
+                  ) : quiz.status === 'Live' ? (
                     <button
                       onClick={() => startQuizSession(quiz)}
                       className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
