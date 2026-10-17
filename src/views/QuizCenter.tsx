@@ -302,6 +302,48 @@ export const QuizCenter: React.FC<QuizCenterProps> = ({
                       {activeTimedQuiz.questions[currentQuestionIdx].questionText}
                     </h3>
 
+                    {activeTimedQuiz.questions[currentQuestionIdx].type === 'coding' && activeTimedQuiz.questions[currentQuestionIdx].codingProblem && (
+                      <div className="space-y-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                        <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+                          {activeTimedQuiz.questions[currentQuestionIdx].codingProblem.title}
+                        </h4>
+                        <p className="whitespace-pre-wrap text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+                          {activeTimedQuiz.questions[currentQuestionIdx].codingProblem.statement}
+                        </p>
+                        {activeTimedQuiz.questions[currentQuestionIdx].codingProblem.inputFormat && (
+                          <section>
+                            <h5 className="mb-1 text-[10px] font-bold uppercase text-zinc-500">Input Format</h5>
+                            <p className="whitespace-pre-wrap text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+                              {activeTimedQuiz.questions[currentQuestionIdx].codingProblem.inputFormat}
+                            </p>
+                          </section>
+                        )}
+                        {activeTimedQuiz.questions[currentQuestionIdx].codingProblem.outputFormat && (
+                          <section>
+                            <h5 className="mb-1 text-[10px] font-bold uppercase text-zinc-500">Output Format</h5>
+                            <p className="whitespace-pre-wrap text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+                              {activeTimedQuiz.questions[currentQuestionIdx].codingProblem.outputFormat}
+                            </p>
+                          </section>
+                        )}
+                        {activeTimedQuiz.questions[currentQuestionIdx].codingProblem.examples?.map((example, index) => (
+                          <section key={`${activeTimedQuiz.questions[currentQuestionIdx].codingProblem.id}-example-${index}`}>
+                            <h5 className="mb-1 text-[10px] font-bold uppercase text-zinc-500">Example {index + 1}</h5>
+                            <pre className="whitespace-pre-wrap rounded bg-zinc-50 p-3 text-xs text-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">Input: {example.input}{'\n'}Output: {example.output}</pre>
+                            {example.explanation && <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-zinc-500">{example.explanation}</p>}
+                          </section>
+                        ))}
+                        {activeTimedQuiz.questions[currentQuestionIdx].codingProblem.constraints && (
+                          <section>
+                            <h5 className="mb-1 text-[10px] font-bold uppercase text-zinc-500">Constraints</h5>
+                            <p className="whitespace-pre-wrap text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+                              {activeTimedQuiz.questions[currentQuestionIdx].codingProblem.constraints}
+                            </p>
+                          </section>
+                        )}
+                      </div>
+                    )}
+
                     {/* TYPE 1: MULTIPLE CHOICE QUESTION OPTIONS */}
                     {activeTimedQuiz.questions[currentQuestionIdx].type === 'multiple-choice' && (
                       <div className="space-y-3 pt-2">
